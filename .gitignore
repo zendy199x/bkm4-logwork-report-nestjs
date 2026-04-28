@@ -8,3 +8,6 @@ pnpm-debug.log*
 coverage
 .idea
 .vscode
+fly.toml
+.vercel
+.env*.local

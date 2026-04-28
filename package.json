@@ -1,11 +1,11 @@
 {
-  "name": "render-nest-api",
+  "name": "bkm4-logwork-report-api",
   "version": "1.0.0",
   "private": true,
   "description": "NestJS service for Jira worklog report with automated cron dispatch",
-  "packageManager": "pnpm@10.8.1",
+  "packageManager": "pnpm@11.0.8",
   "engines": {
-    "node": ">=24"
+    "node": "22.x"
   },
   "scripts": {
     "build": "nest build",
@@ -21,6 +21,8 @@
     "@nestjs/schedule": "^5.0.1",
     "axios": "^1.9.0",
     "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.6.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -48,5 +50,11 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "unrs-resolver"
+    ]
   }
 }

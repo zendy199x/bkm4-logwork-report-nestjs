@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
+  HttpCode,
   Post,
   Query,
   UnauthorizedException,
@@ -43,5 +45,11 @@ export class ReportController {
       message: 'Report triggered again successfully',
       ...result,
     };
+  }
+
+  @Post('chat/events')
+  @HttpCode(200)
+  async handleGoogleChatEvent(@Body() event: unknown) {
+    return this.reportService.handleGoogleChatEvent(event);
   }
 }

@@ -1,0 +1,156 @@
+name: Vercel Deploy
+
+on:
+    workflow_dispatch:
+        inputs:
+            target_environment:
+                description: Environment to deploy when manually triggered
+                required: true
+                default: preview
+                type: choice
+                options:
+                    - preview
+                    - production
+                    - both
+    pull_request:
+        branches:
+            - vercel-deploy
+    push:
+        branches:
+            - vercel-deploy
+
+concurrency:
+    group: vercel-deploy-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+    NODE_VERSION: '22'
+    PNPM_VERSION: '11.0.8'
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        if: ${{ github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/vercel-deploy' }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: ${{ env.PNPM_VERSION }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build app
+              run: pnpm run build
+
+    deploy_preview:
+        name: Deploy Preview
+        runs-on: ubuntu-latest
+        needs: build
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/vercel-deploy' && (inputs.target_environment == 'preview' || inputs.target_environment == 'both')) }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: ${{ env.PNPM_VERSION }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
+
+            - name: Install Vercel CLI
+              run: npx --yes vercel@latest --version
+
+            - name: Pull Vercel env (Preview)
+              run: npx --yes vercel@latest pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Build Vercel artifacts (Preview)
+              run: npx --yes vercel@latest build --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Deploy Preview
+              id: preview
+              run: |
+                  url=$(npx --yes vercel@latest deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Publish preview URL to job summary
+              run: |
+                  echo "### Preview Deployment" >> "$GITHUB_STEP_SUMMARY"
+                  echo "${{ steps.preview.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+
+    deploy_production:
+        name: Deploy Production
+        runs-on: ubuntu-latest
+        needs: build
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/vercel-deploy') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/vercel-deploy' && (inputs.target_environment == 'production' || inputs.target_environment == 'both')) }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: ${{ env.PNPM_VERSION }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
+
+            - name: Install Vercel CLI
+              run: npx --yes vercel@latest --version
+
+            - name: Pull Vercel env (Production)
+              run: npx --yes vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Build Vercel artifacts (Production)
+              run: npx --yes vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Deploy Production
+              id: production
+              run: |
+                  url=$(npx --yes vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+            - name: Publish production URL to job summary
+              run: |
+                  echo "### Production Deployment" >> "$GITHUB_STEP_SUMMARY"
+                  echo "${{ steps.production.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

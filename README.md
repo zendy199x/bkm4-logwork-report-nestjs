@@ -1,72 +1,189 @@
-# render-nest-api
+# bkm4-logwork-report-api
 
-NestJS web service to generate and send Jira worklog report to Google Chat, with auto-run schedule equivalent to your current project.
+NestJS API to collect Jira worklogs and send a daily report to Google Chat.
 
-## Features
+## What this project does
 
-- Fetch Jira worklogs from `/rest/api/3/search/jql`
-- Filter and aggregate by Vietnam date (`Asia/Ho_Chi_Minh`)
-- Send text table report to Google Chat webhook
-- Send Jira check button card to Chat
-- Auto-run at 17:00 Monday to Friday (VN time) via Nest scheduler
-- Dedicated cron runner for Render Cron Job service
-- Manual trigger endpoint for testing
+- Fetches Jira worklogs via Jira Search API.
+- Aggregates worklogs by report date/timezone.
+- Sends report to Google Chat (webhook mode or app mode).
+- Exposes manual endpoints for run/retry.
+- Runs scheduled trigger on Vercel Cron.
+- Provides a root HTML page with Vercel Web Analytics snippet.
+
+## Prerequisites
+
+- Node.js 22.x
+- pnpm 10.x
+- Vercel account + Vercel CLI
+
+Why Node 22?
+
+- `package.json` is pinned to Node 22.x because this Vercel project runs on Node 22.
+- If your local machine is Node 24, `pnpm run build` shows `Unsupported engine` warning.
+
+Use Node 22 locally:
+
+```bash
+nvm use
+node -v
+```
+
+This repository includes `.nvmrc` with `22` for quick switching.
 
 ## Environment variables
 
-Required:
+Required for all modes:
 
 - `JIRA_DOMAIN`
 - `JIRA_EMAIL`
 - `JIRA_API_TOKEN`
+
+Chat mode:
+
+- `GOOGLE_CHAT_MODE=webhook` (default)
+- `GOOGLE_CHAT_MODE=app`
+
+Required when `GOOGLE_CHAT_MODE=webhook`:
+
 - `WEBHOOK`
 
-Optional:
+Required when `GOOGLE_CHAT_MODE=app`:
 
-- `TZ` (default: `Asia/Ho_Chi_Minh`)
-- `REPORT_DATE` (format: `YYYY-MM-DD`)
-- `APP_BASE_URL` (e.g. `https://jira-logwork-web.onrender.com`, used for Chat retry button)
-- `CRON_SECRET` (protect manual trigger endpoint)
+- `GOOGLE_CHAT_SPACE`
+- `GOOGLE_CHAT_SERVICE_ACCOUNT_EMAIL`
+- `GOOGLE_CHAT_SERVICE_ACCOUNT_PRIVATE_KEY` (keep newline escaped as `\\n`)
 
-## Local run
+Recommended optional vars:
+
+- `REPORT_TIMEZONE=Asia/Ho_Chi_Minh`
+- `TZ=Asia/Ho_Chi_Minh` (fallback)
+- `REPORT_DATE=` (format `YYYY-MM-DD`)
+- `APP_BASE_URL=https://bkm4-logwork-report.vercel.app`
+- `CRON_SECRET=<long-random-secret>`
+- `API_BASE_PATH=` (keep empty on Vercel unless you need custom prefix)
+
+## Local development
+
+1. Install deps
 
 ```bash
 corepack enable
 pnpm install
+```
+
+1. Build
+
+```bash
 pnpm run build
+```
+
+1. Run
+
+```bash
 pnpm run start
 ```
 
-Health check:
+## How to test output quickly
+
+Root HTML page (the one with analytics snippet):
+
+```bash
+curl -s http://localhost:3000/
+```
+
+You should see HTML containing:
+
+- `BKM4 Logwork Report API`
+- `/_vercel/insights/script.js`
+
+Health endpoint:
 
 ```bash
 curl http://localhost:3000/health
 ```
 
-Manual trigger:
+Manual run (local):
 
 ```bash
 curl -X POST "http://localhost:3000/reports/run?token=YOUR_CRON_SECRET"
 ```
 
-Retry trigger (for Google Chat button/open link):
+Retry endpoint (local):
 
 ```bash
 curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
 ```
 
-## Deploy to Render
+## Deploy to Vercel (step-by-step)
 
-1. Create a new GitHub repo and push this folder content.
-2. In Render, choose New -> Blueprint.
-3. Connect your repo. Render will read `render.yaml` and create:
-   - Web service
-   - Cron service (schedule `0 10 * * 1-5` = 17:00 VN, Mon-Fri)
-4. Set env vars for both services.
-   - Set `APP_BASE_URL` to your web URL (example: `https://bkm4-logwork-report.onrender.com`).
-   - Set the same `CRON_SECRET` value on both Web service and Cron service.
+1. Login and link project
 
-## Notes
+```bash
+pnpm dlx vercel login
+pnpm dlx vercel link
+```
 
-- Cron in Render uses UTC expression; `0 10 * * 1-5` equals 17:00 VN weekdays.
-- This project has both Nest internal cron and a Render cron service. Keep one or both depending on your reliability preference.
+1. Set env vars (Production)
+
+```bash
+pnpm dlx vercel env add JIRA_DOMAIN production
+pnpm dlx vercel env add JIRA_EMAIL production
+pnpm dlx vercel env add JIRA_API_TOKEN production
+pnpm dlx vercel env add GOOGLE_CHAT_MODE production
+pnpm dlx vercel env add WEBHOOK production
+pnpm dlx vercel env add APP_BASE_URL production
+pnpm dlx vercel env add CRON_SECRET production
+pnpm dlx vercel env add REPORT_TIMEZONE production
+```
+
+1. Deploy Production
+
+```bash
+pnpm dlx vercel --prod --yes
+```
+
+1. (Optional) point custom alias
+
+```bash
+pnpm dlx vercel alias set <deployment-url> bkm4-logwork-report.vercel.app
+```
+
+## Vercel Cron
+
+Configured in `vercel.json`:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "15 10 * * 1-5"
+    }
+  ]
+}
+```
+
+This means 17:15 Vietnam time on weekdays.
+
+## Production endpoint tests (Vercel)
+
+Health:
+
+```bash
+curl https://bkm4-logwork-report.vercel.app/api/health
+```
+
+Retry link (must include token):
+
+```bash
+curl "https://bkm4-logwork-report.vercel.app/api/reports/retry?token=YOUR_CRON_SECRET"
+```
+
+Cron route manually (for debugging):
+
+```bash
+curl "https://bkm4-logwork-report.vercel.app/api/cron?token=YOUR_CRON_SECRET"
+```
+
+Without token, `/api/cron` and retry endpoints are expected to return unauthorized.
