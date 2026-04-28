@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: jira-logwork-web
+    runtime: node
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: TZ
+        value: Asia/Ho_Chi_Minh
+      - key: PORT
+        value: 3000
+      - key: JIRA_DOMAIN
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      - key: WEBHOOK
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+
+  - type: cron
+    name: jira-logwork-daily-cron
+    runtime: node
+    rootDir: .
+    schedule: "0 9 * * 1-5"
+    buildCommand: npm install && npm run build
+    startCommand: npm run cron:run
+    envVars:
+      - key: TZ
+        value: Asia/Ho_Chi_Minh
+      - key: JIRA_DOMAIN
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      - key: WEBHOOK
+        sync: false
