@@ -3,8 +3,8 @@ services:
     name: jira-logwork-web
     runtime: node
     rootDir: .
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm run start
     autoDeploy: true
     envVars:
       - key: TZ
@@ -19,16 +19,18 @@ services:
         sync: false
       - key: WEBHOOK
         sync: false
+      - key: APP_BASE_URL
+        sync: false
       - key: CRON_SECRET
-        generateValue: true
+        sync: false
 
   - type: cron
     name: jira-logwork-daily-cron
     runtime: node
     rootDir: .
-    schedule: "0 9 * * 1-5"
-    buildCommand: npm install && npm run build
-    startCommand: npm run cron:run
+    schedule: "0 10 * * 1-5"
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm run cron:run
     envVars:
       - key: TZ
         value: Asia/Ho_Chi_Minh
@@ -39,4 +41,8 @@ services:
       - key: JIRA_API_TOKEN
         sync: false
       - key: WEBHOOK
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: CRON_SECRET
         sync: false

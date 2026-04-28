@@ -15,6 +15,7 @@ type JiraConfig = {
     reportDate: string;
     reportTime: string;
     jiraCheckUrl: string;
+    retryReportUrl: string | null;
     webhook: string;
     auth: {
         username: string;
@@ -47,6 +48,7 @@ export class ReportService {
                 reportTime: cfg.reportTime,
             },
             cfg.jiraCheckUrl,
+            cfg.retryReportUrl,
         );
 
         const userCount = Object.values(data.users).filter(
@@ -97,6 +99,7 @@ export class ReportService {
             reportDate,
             reportTime: this.formatTimeInTimeZone(new Date(), timezone),
             jiraCheckUrl: this.buildJiraCheckUrl(this.shiftDateString(reportDate, -7), reportDate),
+            retryReportUrl: this.buildRetryReportUrl(),
             webhook: this.requireEnv('WEBHOOK'),
             auth: {
                 username: this.requireEnv('JIRA_EMAIL'),
@@ -191,6 +194,33 @@ export class ReportService {
         const serializedHash = `${hashPath}?${hashParams.toString()}`;
         url.hash = `!/${serializedHash}`;
         return url.toString();
+    }
+
+    private buildRetryReportUrl(): string | null {
+        const appBaseUrl = (process.env.APP_BASE_URL || '').trim();
+        if (!appBaseUrl) {
+            this.logger.warn('APP_BASE_URL is empty. Retry button will be skipped.');
+            return null;
+        }
+
+        let baseUrl: URL;
+        try {
+            baseUrl = new URL(appBaseUrl);
+        } catch {
+            this.logger.warn('APP_BASE_URL is invalid. Retry button will be skipped.');
+            return null;
+        }
+
+        const retryUrl = new URL('/reports/retry', baseUrl);
+        const cronSecret = (process.env.CRON_SECRET || '').trim();
+
+        if (cronSecret) {
+            retryUrl.searchParams.set('token', cronSecret);
+        } else {
+            this.logger.warn('CRON_SECRET is empty. Retry button will trigger a public endpoint.');
+        }
+
+        return retryUrl.toString();
     }
 
     private async fetchIssues(cfg: JiraConfig): Promise<any[]> {
@@ -317,11 +347,35 @@ export class ReportService {
             reportTime: string;
         },
         jiraCheckUrl: string,
+        retryReportUrl: string | null,
     ): Promise<void> {
         const text = this.buildChatTextReport(data);
         await axios.post(webhook, { text });
 
         try {
+            const buttons = [
+                ...(retryReportUrl
+                    ? [
+                        {
+                            text: 'Kiểm tra lại',
+                            onClick: {
+                                openLink: {
+                                    url: retryReportUrl,
+                                },
+                            },
+                        },
+                    ]
+                    : []),
+                {
+                    text: 'Kiểm tra trên Jira',
+                    onClick: {
+                        openLink: {
+                            url: jiraCheckUrl,
+                        },
+                    },
+                },
+            ];
+
             await axios.post(webhook, {
                 cardsV2: [
                     {
@@ -332,16 +386,7 @@ export class ReportService {
                                     widgets: [
                                         {
                                             buttonList: {
-                                                buttons: [
-                                                    {
-                                                        text: 'Kiểm tra trên Jira',
-                                                        onClick: {
-                                                            openLink: {
-                                                                url: jiraCheckUrl,
-                                                            },
-                                                        },
-                                                    },
-                                                ],
+                                                buttons,
                                             },
                                         },
                                     ],

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "NestJS service for Jira worklog report with automated cron dispatch",
+  "packageManager": "pnpm@10.8.1",
   "engines": {
     "node": ">=24"
   },
@@ -10,7 +11,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "cron:run": "node dist/cron-runner.js"
+    "cron:run": "node dist/cron-runner.js",
+    "cron:dev": "pnpm install --frozen-lockfile && pnpm run build && pnpm run cron:run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

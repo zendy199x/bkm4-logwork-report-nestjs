@@ -8,7 +8,7 @@ NestJS web service to generate and send Jira worklog report to Google Chat, with
 - Filter and aggregate by Vietnam date (`Asia/Ho_Chi_Minh`)
 - Send text table report to Google Chat webhook
 - Send Jira check button card to Chat
-- Auto-run at 16:00 Monday to Friday (VN time) via Nest scheduler
+- Auto-run at 17:00 Monday to Friday (VN time) via Nest scheduler
 - Dedicated cron runner for Render Cron Job service
 - Manual trigger endpoint for testing
 
@@ -25,14 +25,16 @@ Optional:
 
 - `TZ` (default: `Asia/Ho_Chi_Minh`)
 - `REPORT_DATE` (format: `YYYY-MM-DD`)
+- `APP_BASE_URL` (e.g. `https://jira-logwork-web.onrender.com`, used for Chat retry button)
 - `CRON_SECRET` (protect manual trigger endpoint)
 
 ## Local run
 
 ```bash
-npm install
-npm run build
-npm run start
+corepack enable
+pnpm install
+pnpm run build
+pnpm run start
 ```
 
 Health check:
@@ -47,16 +49,24 @@ Manual trigger:
 curl -X POST "http://localhost:3000/reports/run?token=YOUR_CRON_SECRET"
 ```
 
+Retry trigger (for Google Chat button/open link):
+
+```bash
+curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
+```
+
 ## Deploy to Render
 
 1. Create a new GitHub repo and push this folder content.
 2. In Render, choose New -> Blueprint.
 3. Connect your repo. Render will read `render.yaml` and create:
    - Web service
-   - Cron service (schedule `0 9 * * 1-5` = 16:00 VN, Mon-Fri)
+   - Cron service (schedule `0 10 * * 1-5` = 17:00 VN, Mon-Fri)
 4. Set env vars for both services.
+   - Set `APP_BASE_URL` to your web URL (example: `https://bkm4-logwork-report.onrender.com`).
+   - Set the same `CRON_SECRET` value on both Web service and Cron service.
 
 ## Notes
 
-- Cron in Render uses UTC expression; `0 9 * * 1-5` equals 16:00 VN weekdays.
+- Cron in Render uses UTC expression; `0 10 * * 1-5` equals 17:00 VN weekdays.
 - This project has both Nest internal cron and a Render cron service. Keep one or both depending on your reliability preference.
