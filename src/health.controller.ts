@@ -321,6 +321,12 @@ export class HealthController {
                 <td>Jira API token for basic authentication.</td>
               </tr>
               <tr>
+                <td><code>JIRA_CHECK_URL</code></td>
+                <td><span class="env-chip required">Required</span></td>
+                <td class="mono">https://oneline.atlassian.net/projects/BKM4?selectedItem=...</td>
+                <td>Jira report/check page URL used for Chat card action button.</td>
+              </tr>
+              <tr>
                 <td><code>GOOGLE_CHAT_MODE</code></td>
                 <td><span class="env-chip optional">Optional</span></td>
                 <td class="mono">webhook | app</td>
@@ -713,6 +719,7 @@ pnpm run start:dev</pre>
             <li><code>JIRA_DOMAIN</code> - Jira base domain.</li>
             <li><code>JIRA_EMAIL</code> - Jira account email.</li>
             <li><code>JIRA_API_TOKEN</code> - Jira API token.</li>
+            <li><code>JIRA_CHECK_URL</code> - Jira page URL for the "Kiểm tra trên Jira" button.</li>
             <li><code>WEBHOOK</code> - Google Chat incoming webhook URL (when <code>GOOGLE_CHAT_MODE=webhook</code>).</li>
           </ul>
           <p>Optional but recommended: <code>CRON_SECRET</code>, <code>REPORT_TIMEZONE</code>, <code>APP_BASE_URL</code>.</p>
@@ -743,6 +750,7 @@ npx -y vercel alias set &lt;deployment-url&gt; bkm4-logwork-report.vercel.app</p
 npx -y vercel env add JIRA_DOMAIN production
 npx -y vercel env add JIRA_EMAIL production
 npx -y vercel env add JIRA_API_TOKEN production
+npx -y vercel env add JIRA_CHECK_URL production
 npx -y vercel env add WEBHOOK production</pre>
         </article>
 

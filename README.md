@@ -11,6 +11,35 @@ NestJS API to collect Jira worklogs and send a daily report to Google Chat.
 - Runs scheduled trigger on Vercel Cron.
 - Provides a root HTML page with Vercel Web Analytics snippet.
 
+## Architecture (Clean + Scalable)
+
+The `report` module now follows a layered structure to keep responsibilities separated:
+
+```text
+src/report/
+  application/
+    report-runner.service.ts      # use-case orchestration
+  domain/
+    report.types.ts               # shared business contracts/types
+  infrastructure/
+    report-config.service.ts      # env parsing + runtime config
+    jira-api.service.ts           # Jira API adapter
+    chat-delivery.service.ts      # Google Chat adapter (webhook/app)
+  report.service.ts               # facade for controller/scheduler compatibility
+  report.controller.ts
+  report.scheduler.ts
+```
+
+Design rules used in this project:
+
+- Controller/scheduler should call a single facade (`ReportService`) and not know Jira/Chat details.
+- `application` layer orchestrates use-cases only.
+- `infrastructure` layer contains external I/O (Jira, Chat, env/runtime wiring).
+- `domain` layer contains pure shared contracts.
+- Keep env reads centralized in one place (`ReportConfigService`) to avoid config drift.
+
+This structure makes it easier to add new integrations later (for example Slack, email, or a different issue tracker) without changing controller routes.
+
 ## Prerequisites
 
 - Node.js 22.x
@@ -38,6 +67,7 @@ Required for all modes:
 - `JIRA_DOMAIN`
 - `JIRA_EMAIL`
 - `JIRA_API_TOKEN`
+- `JIRA_CHECK_URL`
 
 Chat mode:
 
@@ -130,6 +160,7 @@ pnpm dlx vercel link
 pnpm dlx vercel env add JIRA_DOMAIN production
 pnpm dlx vercel env add JIRA_EMAIL production
 pnpm dlx vercel env add JIRA_API_TOKEN production
+pnpm dlx vercel env add JIRA_CHECK_URL production
 pnpm dlx vercel env add GOOGLE_CHAT_MODE production
 pnpm dlx vercel env add WEBHOOK production
 pnpm dlx vercel env add APP_BASE_URL production

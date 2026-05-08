@@ -3,11 +3,15 @@ import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import express, { type Request, type Response } from 'express';
+import express, { type NextFunction } from 'express';
 
 import { AppModule } from '../src/app.module';
 
-type ExpressHandler = (req: Request, res: Response) => void;
+type ApiRequest = {
+    url: string;
+};
+
+type ExpressHandler = (req: ApiRequest, res: unknown, next?: NextFunction) => unknown;
 
 let cachedHandler: ExpressHandler | null = null;
 
@@ -17,7 +21,7 @@ async function getHandler(): Promise<ExpressHandler> {
     }
 
     const expressApp = express();
-    expressApp.use((req, _res, next) => {
+    expressApp.use((req: ApiRequest, _res: unknown, next: NextFunction) => {
         if (req.url === '/api') {
             req.url = '/';
         } else if (req.url.startsWith('/api/')) {
@@ -34,11 +38,11 @@ async function getHandler(): Promise<ExpressHandler> {
     );
 
     await app.init();
-    cachedHandler = expressApp;
+    cachedHandler = expressApp as unknown as ExpressHandler;
     return cachedHandler;
 }
 
-export default async function handler(req: Request, res: Response) {
+export default async function handler(req: unknown, res: unknown) {
     const appHandler = await getHandler();
-    return appHandler(req, res);
+    return appHandler(req as ApiRequest, res);
 }

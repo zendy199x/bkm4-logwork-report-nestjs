@@ -1,7 +1,5 @@
-import type { Request, Response } from 'express';
-
 import handler from './_handler';
 
-export default async function apiIndex(req: Request, res: Response) {
+export default async function apiIndex(req: unknown, res: unknown) {
     return handler(req, res);
 }
