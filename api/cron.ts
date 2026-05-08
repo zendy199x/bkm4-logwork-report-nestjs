@@ -1,4 +1,7 @@
-import { ReportService } from '../src/report/report.service';
+import { ReportRunnerService } from '../src/report/application/report-runner.service';
+import { ChatDeliveryService } from '../src/report/infrastructure/chat-delivery.service';
+import { JiraApiService } from '../src/report/infrastructure/jira-api.service';
+import { ReportConfigService } from '../src/report/infrastructure/report-config.service';
 
 type ApiRequest = {
     headers?: Record<string, string | string[] | undefined>;
@@ -34,6 +37,21 @@ function isAuthorized(req: ApiRequest): boolean {
     return token === required;
 }
 
+let cachedRunner: ReportRunnerService | null = null;
+
+function getReportRunner(): ReportRunnerService {
+    if (cachedRunner) {
+        return cachedRunner;
+    }
+
+    const configService = new ReportConfigService();
+    const jiraApiService = new JiraApiService();
+    const chatDeliveryService = new ChatDeliveryService();
+
+    cachedRunner = new ReportRunnerService(configService, jiraApiService, chatDeliveryService);
+    return cachedRunner;
+}
+
 export default async function cronHandler(req: ApiRequest, res: ApiResponse) {
     if (!isAuthorized(req)) {
         return res.status(401).json({
@@ -42,10 +60,10 @@ export default async function cronHandler(req: ApiRequest, res: ApiResponse) {
         });
     }
 
-    const reportService = new ReportService();
+    const reportRunner = getReportRunner();
 
     try {
-        const result = await reportService.runDailyReport('vercel-cron');
+        const result = await reportRunner.runDailyReport('vercel-cron');
         return res.status(200).json({
             ok: true,
             ...result,

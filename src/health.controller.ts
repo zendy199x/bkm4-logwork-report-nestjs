@@ -326,10 +326,10 @@ export class HealthController {
                 <td>Jira API token for basic authentication.</td>
               </tr>
               <tr>
-                <td><code>JIRA_CHECK_URL</code></td>
+                <td><code>TEAM_NAME</code></td>
                 <td><span class="env-chip required">Required</span></td>
-                <td class="mono">https://oneline.atlassian.net/projects/${this.teamName}?selectedItem=...</td>
-                <td>Jira report/check page URL used for Chat card action button.</td>
+                <td class="mono">${this.teamName}</td>
+                <td>Jira project key used to build JQL and Jira check button URL.</td>
               </tr>
               <tr>
                 <td><code>GOOGLE_CHAT_MODE</code></td>
@@ -721,10 +721,10 @@ pnpm run start:dev</pre>
         <article class="card">
           <div class="step-head"><span class="step-no">2</span><h2>Required Environment Variables</h2></div>
           <ul>
+            <li><code>TEAM_NAME</code> - Jira project key used in report logic.</li>
             <li><code>JIRA_DOMAIN</code> - Jira base domain.</li>
             <li><code>JIRA_EMAIL</code> - Jira account email.</li>
             <li><code>JIRA_API_TOKEN</code> - Jira API token.</li>
-            <li><code>JIRA_CHECK_URL</code> - Jira page URL for the "Kiểm tra trên Jira" button.</li>
             <li><code>WEBHOOK</code> - Google Chat incoming webhook URL (when <code>GOOGLE_CHAT_MODE=webhook</code>).</li>
           </ul>
           <p>Optional but recommended: <code>CRON_SECRET</code>, <code>REPORT_TIMEZONE</code>, <code>APP_BASE_URL</code>.</p>
@@ -752,10 +752,10 @@ npx -y vercel alias set &lt;deployment-url&gt; ${this.teamSlug}-logwork-report.v
             <li>Redeploy after changes.</li>
           </ol>
           <pre>npx -y vercel env add CRON_SECRET production
+        npx -y vercel env add TEAM_NAME production
 npx -y vercel env add JIRA_DOMAIN production
 npx -y vercel env add JIRA_EMAIL production
 npx -y vercel env add JIRA_API_TOKEN production
-npx -y vercel env add JIRA_CHECK_URL production
 npx -y vercel env add WEBHOOK production</pre>
         </article>
 

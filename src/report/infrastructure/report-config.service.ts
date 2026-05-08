@@ -4,10 +4,14 @@ import { ChatMode, type ChatDeliveryConfig, type ReportRuntimeConfig } from '../
 @Injectable()
 export class ReportConfigService {
   private readonly logger = new Logger(ReportConfigService.name);
+  private static readonly JIRA_REPORT_SELECTED_ITEM =
+    'com.atlassian.plugins.atlassian-connect-plugin:com.gebsun.atlassian.reports.free__report';
 
   getRuntimeConfig(): ReportRuntimeConfig {
     const rawDomain = this.requireEnv('JIRA_DOMAIN');
-    const jiraCheckUrl = this.requireEnv('JIRA_CHECK_URL');
+    const jiraDomain = this.normalizeJiraDomain(rawDomain);
+    const teamName = this.requireEnv('TEAM_NAME');
+    const jiraCheckUrl = this.resolveJiraCheckUrl(jiraDomain, teamName);
     const timezone = this.resolveTimeZone();
     const requestedReportDate = (process.env.REPORT_DATE || '').trim();
     const reportDate = requestedReportDate || this.formatDateInTimeZone(new Date(), timezone);
@@ -20,7 +24,7 @@ export class ReportConfigService {
       reportDateTimeLabel: this.formatDisplayDateTimeInTimeZone(new Date(), timezone),
       jiraCheckUrl,
       jira: {
-        jiraDomain: this.normalizeJiraDomain(rawDomain),
+        jiraDomain,
         jiraEmail: this.requireEnv('JIRA_EMAIL'),
         jiraApiToken: this.requireEnv('JIRA_API_TOKEN'),
         requestConfig: {
@@ -162,6 +166,12 @@ export class ReportConfigService {
     return normalized.origin;
   }
 
+  private resolveJiraCheckUrl(jiraDomain: string, teamName: string): string {
+    const jiraCheckUrl = new URL(`/projects/${encodeURIComponent(teamName)}`, jiraDomain);
+    jiraCheckUrl.searchParams.set('selectedItem', ReportConfigService.JIRA_REPORT_SELECTED_ITEM);
+    return jiraCheckUrl.toString();
+  }
+
   private validateReportDate(reportDate: string): void {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
       throw new Error(`Invalid REPORT_DATE format: ${reportDate}. Expected YYYY-MM-DD`);
@@ -211,12 +221,7 @@ export class ReportConfigService {
   }
 
   private buildRetryReportUrl(): string | null {
-    const appBaseUrl = (process.env.APP_BASE_URL || '').trim();
-    if (!appBaseUrl) {
-      this.logger.warn('APP_BASE_URL is empty. Retry button will be skipped.');
-      return null;
-    }
-
+    const appBaseUrl = this.resolveAppBaseUrl();
     let baseUrl: URL;
     try {
       baseUrl = new URL(appBaseUrl);
@@ -241,5 +246,20 @@ export class ReportConfigService {
     }
 
     return retryUrl.toString();
+  }
+
+  private resolveAppBaseUrl(): string {
+    const configuredAppBaseUrl = (process.env.APP_BASE_URL || '').trim();
+    if (configuredAppBaseUrl) {
+      return configuredAppBaseUrl;
+    }
+
+    const vercelUrl = (process.env.VERCEL_URL || '').trim();
+    if (vercelUrl) {
+      return `https://${vercelUrl}`;
+    }
+
+    const port = (process.env.PORT || '').trim() || '3000';
+    return `http://localhost:${port}`;
   }
 }

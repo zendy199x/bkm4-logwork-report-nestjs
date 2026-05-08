@@ -1,186 +1,153 @@
-# bkm4-logwork-report-api
+# Logwork Report API (NestJS + Vercel)
 
-NestJS API to collect Jira worklogs and send a daily report to Google Chat.
+This service fetches Jira worklogs, aggregates report data by date/timezone, and sends reports to Google Chat.
 
-## What this project does
+## 1. Overview
 
-- Fetches Jira worklogs via Jira Search API.
-- Aggregates worklogs by report date/timezone.
-- Sends report to Google Chat (webhook mode or app mode).
-- Exposes manual endpoints for run/retry.
-- Runs scheduled trigger on Vercel Cron.
-- Provides a root HTML page with Vercel Web Analytics snippet.
+Core capabilities:
 
-## Architecture (Clean + Scalable)
+- Fetch issues and worklogs from Jira.
+- Aggregate logged hours by author for the report date.
+- Send text report + action buttons to Google Chat.
+- Support manual triggers and scheduled cron execution on Vercel.
 
-The `report` module now follows a layered structure to keep responsibilities separated:
+Notes:
+
+- Your local folder name can be anything (for example `render-nest-api`); it does not define the runtime service identity.
+- `TEAM_NAME` is used to avoid hardcoded project/team values across the app.
+
+## 2. Architecture
+
+The `report` module is split by responsibility:
 
 ```text
 src/report/
-  application/
-    report-runner.service.ts      # use-case orchestration
-  domain/
-    report.types.ts               # shared business contracts/types
-  infrastructure/
-    report-config.service.ts      # env parsing + runtime config
-    jira-api.service.ts           # Jira API adapter
-    chat-delivery.service.ts      # Google Chat adapter (webhook/app)
-  report.service.ts               # facade for controller/scheduler compatibility
-  report.controller.ts
-  report.scheduler.ts
+----| application/
+----| ----| report-runner.service.ts
+----| domain/
+----| ----| report.types.ts
+----| infrastructure/
+----| ----| report-config.service.ts
+----| ----| jira-api.service.ts
+----| ----| chat-delivery.service.ts
+----| report.service.ts
+----| report.controller.ts
+----| report.scheduler.ts
 ```
 
-Design rules used in this project:
+Guidelines:
 
-- Controller/scheduler should call a single facade (`ReportService`) and not know Jira/Chat details.
-- `application` layer orchestrates use-cases only.
-- `infrastructure` layer contains external I/O (Jira, Chat, env/runtime wiring).
-- `domain` layer contains pure shared contracts.
-- Keep env reads centralized in one place (`ReportConfigService`) to avoid config drift.
+- Controllers call only the facade (`report.service.ts`).
+- Orchestration stays in the application layer.
+- External I/O (Jira, Chat, env) stays in infrastructure.
+- Shared contracts/types stay in domain.
 
-This structure makes it easier to add new integrations later (for example Slack, email, or a different issue tracker) without changing controller routes.
+## 3. Runtime Requirements
 
-## Prerequisites
+- Node.js `22.x`
+- pnpm `11.x` (project uses `pnpm@11.0.8`)
 
-- Node.js 22.x
-- pnpm 10.x
-- Vercel account + Vercel CLI
+If your machine uses Node 24, build may still work but can show engine warnings.
 
-Why Node 22?
+## 4. Environment Variables
 
-- `package.json` is pinned to Node 22.x because this Vercel project runs on Node 22.
-- If your local machine is Node 24, `pnpm run build` shows `Unsupported engine` warning.
+See `.env.example` for the full template.
 
-Use Node 22 locally:
+### Required
 
-```bash
-nvm use
-node -v
-```
-
-This repository includes `.nvmrc` with `22` for quick switching.
-
-## Environment variables
-
-Required for all modes:
-
+- `TEAM_NAME` (example: `BKM4`)
 - `JIRA_DOMAIN`
 - `JIRA_EMAIL`
 - `JIRA_API_TOKEN`
-- `JIRA_CHECK_URL`
+- `GOOGLE_CHAT_MODE`
 
-Chat mode:
+When `GOOGLE_CHAT_MODE=webhook`:
 
-- `GOOGLE_CHAT_MODE=webhook` (default)
-- `GOOGLE_CHAT_MODE=app`
+- `WEBHOOK` (required)
 
-Required when `GOOGLE_CHAT_MODE=webhook`:
+When `GOOGLE_CHAT_MODE=app`:
 
-- `WEBHOOK`
+- `GOOGLE_CHAT_SPACE` (required)
+- `GOOGLE_CHAT_SERVICE_ACCOUNT_EMAIL` (required)
+- `GOOGLE_CHAT_SERVICE_ACCOUNT_PRIVATE_KEY` (required; keep newlines escaped as `\\n`)
 
-Required when `GOOGLE_CHAT_MODE=app`:
+### Recommended
 
-- `GOOGLE_CHAT_SPACE`
-- `GOOGLE_CHAT_SERVICE_ACCOUNT_EMAIL`
-- `GOOGLE_CHAT_SERVICE_ACCOUNT_PRIVATE_KEY` (keep newline escaped as `\\n`)
+- `APP_BASE_URL` (important for generating retry links)
+- `CRON_SECRET` (protects `/reports/run`, `/reports/retry`, `/api/cron`)
+- `REPORT_TIMEZONE` (highest priority)
+- `TZ` (fallback timezone)
+- `REPORT_DATE` (force specific report date, format `YYYY-MM-DD`)
+- `REPORT_DEBUG`, `REPORT_DEBUG_AUTHORS`
+- `API_BASE_PATH` (leave empty on Vercel unless needed)
 
-Recommended optional vars:
+## 5. Local Development
 
-- `REPORT_TIMEZONE=Asia/Ho_Chi_Minh`
-- `TZ=Asia/Ho_Chi_Minh` (fallback)
-- `REPORT_DATE=` (format `YYYY-MM-DD`)
-- `APP_BASE_URL=https://bkm4-logwork-report.vercel.app`
-- `CRON_SECRET=<long-random-secret>`
-- `API_BASE_PATH=` (keep empty on Vercel unless you need custom prefix)
-
-## Local development
-
-1. Install deps
+### Install
 
 ```bash
 corepack enable
 pnpm install
 ```
 
-1. Build
+### Build
 
 ```bash
 pnpm run build
 ```
 
-1. Run
+### Run (dev mode)
 
 ```bash
-pnpm run start
+pnpm run start:dev
 ```
 
-## How to test output quickly
+Default URL: `http://localhost:3000`
 
-Root HTML page (the one with analytics snippet):
+## 6. API Endpoints
 
-```bash
-curl -s http://localhost:3000/
-```
+- `GET /` landing page
+- `GET /health` health check
+- `POST /reports/run` manual report trigger
+- `GET /reports/retry` retry trigger (for button/open-link)
+- `POST /reports/chat/events` Google Chat app callback
 
-You should see HTML containing:
+Important:
 
-- `BKM4 Logwork Report API`
-- `/_vercel/insights/script.js`
+- `/reports/run` is `POST`. Opening it directly in browser (`GET`) returns `Cannot GET /reports/run`.
+- If `CRON_SECRET` is set, pass token via `?token=...` or header `x-cron-secret`.
 
-Health endpoint:
+## 7. Quick Local Tests
+
+Health:
 
 ```bash
 curl http://localhost:3000/health
 ```
 
-Manual run (local):
+Manual run:
 
 ```bash
 curl -X POST "http://localhost:3000/reports/run?token=YOUR_CRON_SECRET"
 ```
 
-Retry endpoint (local):
+Retry:
 
 ```bash
 curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
 ```
 
-## Deploy to Vercel (step-by-step)
+If you do not want token checks locally:
 
-1. Login and link project
+- Set `CRON_SECRET=` (empty) in `.env`, then restart the app.
 
-```bash
-pnpm dlx vercel login
-pnpm dlx vercel link
-```
+## 8. Cron
 
-1. Set env vars (Production)
+### Nest Scheduler (non-Vercel)
 
-```bash
-pnpm dlx vercel env add JIRA_DOMAIN production
-pnpm dlx vercel env add JIRA_EMAIL production
-pnpm dlx vercel env add JIRA_API_TOKEN production
-pnpm dlx vercel env add JIRA_CHECK_URL production
-pnpm dlx vercel env add GOOGLE_CHAT_MODE production
-pnpm dlx vercel env add WEBHOOK production
-pnpm dlx vercel env add APP_BASE_URL production
-pnpm dlx vercel env add CRON_SECRET production
-pnpm dlx vercel env add REPORT_TIMEZONE production
-```
+Local scheduler runs with timezone `Asia/Ho_Chi_Minh`.
 
-1. Deploy Production
-
-```bash
-pnpm dlx vercel --prod --yes
-```
-
-1. (Optional) point custom alias
-
-```bash
-pnpm dlx vercel alias set <deployment-url> bkm4-logwork-report.vercel.app
-```
-
-## Vercel Cron
+### Vercel Cron
 
 Configured in `vercel.json`:
 
@@ -189,32 +156,94 @@ Configured in `vercel.json`:
   "crons": [
     {
       "path": "/api/cron",
-      "schedule": "15 10 * * 1-5"
+      "schedule": "0 10 * * 1-5"
     }
   ]
 }
 ```
 
-This means 17:15 Vietnam time on weekdays.
+`0 10 * * 1-5` = 17:00 (GMT+7), Monday to Friday.
 
-## Production endpoint tests (Vercel)
-
-Health:
+Manual test:
 
 ```bash
-curl https://bkm4-logwork-report.vercel.app/api/health
+curl "https://<your-domain>/api/cron?token=YOUR_CRON_SECRET"
 ```
 
-Retry link (must include token):
+## 9. Deploy to Vercel
+
+### Link project
 
 ```bash
-curl "https://bkm4-logwork-report.vercel.app/api/reports/retry?token=YOUR_CRON_SECRET"
+pnpm dlx vercel login
+pnpm dlx vercel link
 ```
 
-Cron route manually (for debugging):
+### Set Production env vars
 
 ```bash
-curl "https://bkm4-logwork-report.vercel.app/api/cron?token=YOUR_CRON_SECRET"
+pnpm dlx vercel env add TEAM_NAME production
+pnpm dlx vercel env add JIRA_DOMAIN production
+pnpm dlx vercel env add JIRA_EMAIL production
+pnpm dlx vercel env add JIRA_API_TOKEN production
+pnpm dlx vercel env add GOOGLE_CHAT_MODE production
+pnpm dlx vercel env add WEBHOOK production
+pnpm dlx vercel env add APP_BASE_URL production
+pnpm dlx vercel env add CRON_SECRET production
+pnpm dlx vercel env add REPORT_TIMEZONE production
 ```
 
-Without token, `/api/cron` and retry endpoints are expected to return unauthorized.
+### Deploy
+
+```bash
+pnpm dlx vercel --prod --yes
+```
+
+Optional alias:
+
+```bash
+pnpm dlx vercel alias set <deployment-url> <your-domain>
+```
+
+## 10. Troubleshooting
+
+### Retry button is missing
+
+Common causes:
+
+- `APP_BASE_URL` is missing or invalid.
+- Running in `webhook` mode but retry URL cannot be generated.
+- Deployment not refreshed after env changes.
+
+### `/reports/retry` returns 500
+
+Check:
+
+- `TEAM_NAME` and `JIRA_DOMAIN` are set correctly.
+- `JIRA_*` credentials are valid.
+- `WEBHOOK` is valid.
+- JQL project key (`TEAM_NAME`) and issue types are valid in Jira.
+
+### `/reports/run` returns 404 in browser
+
+It is expected if called with `GET`; this route is `POST`.
+
+## 11. Security
+
+- Never commit `.env` / `.env.local`.
+- Do not print secrets in logs.
+- Always enable `CRON_SECRET` in production.
+
+## 12. Naming Convention
+
+`TEAM_NAME` is used to replace hardcoded values like `BKM4` in:
+
+- Google Chat report title
+- Jira JQL project filter
+- Team-related display/slug values
+
+Example:
+
+```dotenv
+TEAM_NAME=ABC
+```
