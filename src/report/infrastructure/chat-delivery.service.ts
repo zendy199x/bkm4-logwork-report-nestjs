@@ -3,6 +3,9 @@ import axios from 'axios';
 import { JWT } from 'google-auth-library';
 import { ChatMode, type AggregatedData, type AggregatedUser, type ChatDeliveryConfig } from '../domain/report.types';
 
+const TEAM_NAME = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
+const REPORT_TITLE = `-+-${TEAM_NAME} LOGWORK REPORT-+-`;
+
 @Injectable()
 export class ChatDeliveryService {
   private readonly logger = new Logger(ChatDeliveryService.name);
@@ -75,7 +78,7 @@ export class ChatDeliveryService {
 
       return [
         '```',
-        '--BKM4 LOGWORK REPORT--',
+        REPORT_TITLE,
         `Date: ${data.reportDateTimeLabel}`,
         noDataBorder,
         noDataLine,
@@ -110,7 +113,7 @@ export class ChatDeliveryService {
 
     return [
       '```',
-      '--BKM4 LOGWORK REPORT--',
+      REPORT_TITLE,
       `Date: ${data.reportDateTimeLabel}`,
       horizontalBorder,
       header,

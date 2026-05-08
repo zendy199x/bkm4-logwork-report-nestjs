@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import type { Issue, JiraConfig, SearchResponse, WorklogItem, WorklogResponse } from '../domain/report.types';
 
-const JQL = 'project = BKM4 AND worklogDate >= startOfDay(-2d)';
+const TEAM_NAME = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
+const JQL =
+  `project = ${TEAM_NAME} AND type IN (Sub-Bug, "Sub-Env and SCM", Sub-Imp, "Sub-Legacy Bug", "Sub PML", "Sub Project Kaizen", Sub-Test, "Sub Skill Up", Sub-task, Sub-ritual, "Sub Refinement", Sub-overhead, "Sub Test Execution") AND worklogDate >= startOfDay(-2d)`;
 const JIRA_SEARCH_PATH = '/rest/api/3/search/jql';
 const JIRA_ISSUE_WORKLOG_PATH = '/rest/api/3/issue';
 const SEARCH_FIELDS = ['worklog'];
