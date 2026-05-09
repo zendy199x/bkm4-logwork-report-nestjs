@@ -246,17 +246,17 @@ pnpm tsc -p tsconfig.spec.json --noEmit
 - Rotate credentials if exposed.
 - Keep service-account keys and API tokens private.
 
-See SECURITY.md for disclosure guidance.
+See [SECURITY.md](SECURITY.md) for disclosure guidance.
 
 ## Community
 
-- Contributing guide: CONTRIBUTING.md
-- Code of conduct: CODE_OF_CONDUCT.md
-- Security policy: SECURITY.md
-- PR template: .github/PULL_REQUEST_TEMPLATE.md
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- PR template: [PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
 
 Contributions are welcome. Issues and pull requests are appreciated.
 
 ## License
 
-MIT, see LICENSE.
+MIT, see [LICENSE](LICENSE).
