@@ -131,30 +131,34 @@ If GOOGLE_CHAT_MODE=app:
 
 ### Internal Nest routes
 
-- GET /
-- GET /health
-- GET /help
-- GET /readme (legacy alias to /help)
-- POST /reports/run
-- GET /reports/retry
-- POST /reports/chat/events
+| Method | Route                | Purpose                             |
+| ------ | -------------------- | ----------------------------------- |
+| GET    | /                    | Landing page                        |
+| GET    | /health              | Health check                        |
+| GET    | /help                | Help and setup guide                |
+| GET    | /readme              | Legacy alias to /help               |
+| POST   | /reports/run         | Trigger report manually             |
+| GET    | /reports/retry       | Retry report flow                   |
+| POST   | /reports/chat/events | Receive Google Chat callback events |
 
 ### Public Vercel routes
 
 The serverless handler maps /api/\* to Nest routes.
 
-Examples:
-
-- GET /api -> GET /
-- GET /api/health -> GET /health
-- GET /api/help -> GET /help
-- POST /api/reports/run -> POST /reports/run
-- GET /api/reports/retry -> GET /reports/retry
-- POST /api/reports/chat/events -> POST /reports/chat/events
+| Method | Public Route             | Internal Route       | Purpose                 |
+| ------ | ------------------------ | -------------------- | ----------------------- |
+| GET    | /api                     | /                    | Landing page            |
+| GET    | /api/health              | /health              | Health check            |
+| GET    | /api/help                | /help                | Help and setup guide    |
+| POST   | /api/reports/run         | /reports/run         | Trigger report manually |
+| GET    | /api/reports/retry       | /reports/retry       | Retry report flow       |
+| POST   | /api/reports/chat/events | /reports/chat/events | Google Chat callback    |
 
 Dedicated cron endpoint:
 
-- GET /api/cron
+| Method | Route     | Purpose                |
+| ------ | --------- | ---------------------- |
+| GET    | /api/cron | Scheduled cron trigger |
 
 ## Local Testing Commands
 
@@ -178,15 +182,75 @@ curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
 
 ## Scripts
 
+### build
+
+Compile the NestJS application into the dist folder.
+
 ```bash
 pnpm run build
+```
+
+### start
+
+Run the compiled application from dist.
+
+```bash
 pnpm run start
+```
+
+### start:dev
+
+Run the application in development mode with file watching.
+
+```bash
 pnpm run start:dev
+```
+
+### test
+
+Run unit tests in-band.
+
+```bash
 pnpm run test
+```
+
+### test:coverage
+
+Run tests with coverage reporting and threshold checks.
+
+```bash
 pnpm run test:coverage
+```
+
+### test:ci
+
+Run tests in CI mode.
+
+```bash
 pnpm run test:ci
+```
+
+### ci:verify
+
+Run the full quality gate: coverage, build, and phrase checks.
+
+```bash
 pnpm run ci:verify
+```
+
+### cron:run
+
+Run the compiled cron runner locally.
+
+```bash
 pnpm run cron:run
+```
+
+### cron:dev
+
+Install dependencies with frozen lockfile, build, then run cron flow.
+
+```bash
 pnpm run cron:dev
 ```
 
