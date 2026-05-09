@@ -29,8 +29,35 @@ jobs:
         if: ${{ !github.event.pull_request.draft }}
 
         steps:
+            - name: Enforce repository owner only
+              run: |
+                  echo "Repository owner: ${{ github.repository_owner }}"
+                  echo "PR author: ${{ github.event.pull_request.user.login }}"
+                  if [ "${{ github.event.pull_request.user.login }}" != "${{ github.repository_owner }}" ]; then
+                    echo "Only the repository owner can merge code into 'develop'."
+                    exit 1
+                  fi
+
             - name: Checkout
               uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  fetch-depth: 0
+
+            - name: Enforce branch starts from develop
+              run: |
+                  git fetch --no-tags origin main develop
+                  MAIN_ONLY_COMMITS="$(git rev-list origin/develop..origin/main)"
+                  if [ -n "$MAIN_ONLY_COMMITS" ]; then
+                    for commit in $MAIN_ONLY_COMMITS; do
+                      if git merge-base --is-ancestor "$commit" HEAD; then
+                        echo "Feature branch includes commit $commit from main that is not in develop."
+                        echo "Please create your working branch from 'develop'."
+                        exit 1
+                      fi
+                    done
+                  fi
+                  echo "Branch base policy check passed."
 
             - name: Setup pnpm
               uses: pnpm/action-setup@v4

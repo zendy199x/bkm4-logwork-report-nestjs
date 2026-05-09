@@ -21,6 +21,15 @@ jobs:
         if: ${{ !github.event.pull_request.draft }}
 
         steps:
+            - name: Enforce repository owner only
+              run: |
+                  echo "Repository owner: ${{ github.repository_owner }}"
+                  echo "PR author: ${{ github.event.pull_request.user.login }}"
+                  if [ "${{ github.event.pull_request.user.login }}" != "${{ github.repository_owner }}" ]; then
+                    echo "Only the repository owner can merge code into 'main'."
+                    exit 1
+                  fi
+
             - name: Validate PR source branch
               run: |
                   echo "Base branch: ${{ github.base_ref }}"
