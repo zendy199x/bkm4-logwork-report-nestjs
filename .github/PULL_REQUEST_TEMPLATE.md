@@ -1,5 +1,11 @@
 # Pull Request
 
+Branch flow for this repository:
+
+- Feature branches must be created from `develop`.
+- Open PRs to `develop` first.
+- Only `develop` is allowed to open PRs into `main`.
+
 ## Summary
 
 Describe what this PR changes and why.

@@ -5,7 +5,7 @@ Thank you for your interest in contributing.
 ## Getting Started
 
 1. Fork the repository.
-1. Create a feature branch from `main`.
+1. Create a feature branch from `develop`.
 1. Install dependencies:
 
 ```bash
@@ -30,14 +30,21 @@ pnpm tsc -p tsconfig.spec.json --noEmit
 ## Pull Request Workflow
 
 1. Fork this repository to your GitHub account.
-1. Create a feature branch from `main`.
+1. Create a feature branch from `develop`.
 1. Commit your changes and push to your fork.
 1. Open a pull request with:
    - Base repository: `zendy199x/jira-team-work-log-tracking`
-   - Base branch: `main`
+   - Base branch: `develop`
    - Compare branch: your fork feature branch
 1. Fill in the PR template completely.
 1. Ensure CI checks pass and address review feedback.
+
+## Branch Policy
+
+- Contributors must branch from `develop`.
+- Pull requests must merge into `develop` first.
+- Pull requests into `main` are only accepted from `develop`.
+- `main` remains deployment branch for Vercel.
 
 ## What To Include In A PR
 

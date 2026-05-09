@@ -1,0 +1,41 @@
+name: Main PR Guard
+
+on:
+    pull_request:
+        branches:
+            - main
+        types:
+            - opened
+            - reopened
+            - synchronize
+            - edited
+            - ready_for_review
+
+permissions:
+    contents: read
+
+jobs:
+    enforce_develop_source:
+        name: Enforce source branch is develop
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.pull_request.draft }}
+
+        steps:
+            - name: Enforce repository owner only
+              run: |
+                  echo "Repository owner: ${{ github.repository_owner }}"
+                  echo "PR author: ${{ github.event.pull_request.user.login }}"
+                  if [ "${{ github.event.pull_request.user.login }}" != "${{ github.repository_owner }}" ]; then
+                    echo "Only the repository owner can merge code into 'main'."
+                    exit 1
+                  fi
+
+            - name: Validate PR source branch
+              run: |
+                  echo "Base branch: ${{ github.base_ref }}"
+                  echo "Head branch: ${{ github.head_ref }}"
+                  if [ "${{ github.head_ref }}" != "develop" ]; then
+                    echo "Only PRs from branch 'develop' can be merged into 'main'."
+                    exit 1
+                  fi
+                  echo "PR source branch is valid."
