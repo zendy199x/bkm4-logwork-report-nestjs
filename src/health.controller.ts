@@ -702,7 +702,7 @@ export class HealthController {
           </div>
           <div class="stat">
             <div class="label">Main Branch</div>
-            <div class="value">vercel-deploy</div>
+            <div class="value">main</div>
           </div>
           <div class="stat">
             <div class="label">Target Domain</div>
@@ -744,12 +744,12 @@ pnpm run start:dev</pre>
         <article class="card">
           <div class="step-head"><span class="step-no">3</span><h2>Deploy To Vercel</h2></div>
           <ol>
-            <li>Push code to branch <code>vercel-deploy</code>.</li>
+            <li>Push code to branch <code>main</code>.</li>
             <li>Deploy production from that branch.</li>
             <li>Attach production alias/domain.</li>
           </ol>
-          <pre>git checkout vercel-deploy
-git pull --ff-only origin vercel-deploy
+          <pre>git checkout main
+git pull --ff-only origin main
 npx -y vercel deploy --prod --yes
 npx -y vercel alias set &lt;deployment-url&gt; ${this.teamSlug}-jira-work-log-tracking.vercel.app</pre>
           <div class="callout ok">Recommended: keep production domain as <code>${this.teamSlug}-jira-work-log-tracking.vercel.app</code>.</div>
@@ -771,11 +771,11 @@ npx -y vercel env add WEBHOOK production</pre>
         </article>
 
         <article class="card">
-          <div class="step-head"><span class="step-no">5</span><h2>Set Main Deploy Branch To vercel-deploy</h2></div>
+          <div class="step-head"><span class="step-no">5</span><h2>Set Main Deploy Branch To main</h2></div>
           <ol>
             <li>Go to GitHub repo settings.</li>
             <li>Open <code>Settings - Branches</code>.</li>
-            <li>Change <code>Default branch</code> to <code>vercel-deploy</code>.</li>
+            <li>Change <code>Default branch</code> to <code>main</code>.</li>
           </ol>
           <p>Vercel production follows your repository default branch when Production Branch selector is not available in project settings.</p>
         </article>
@@ -815,7 +815,7 @@ npx -y vercel env add WEBHOOK production</pre>
               </thead>
               <tbody>
                 <tr>
-                  <td>Branch for production is <code>vercel-deploy</code></td>
+                  <td>Branch for production is <code>main</code></td>
                   <td>Required</td>
                   <td>GitHub - Settings - Branches</td>
                 </tr>

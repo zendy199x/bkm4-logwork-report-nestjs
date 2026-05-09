@@ -7,11 +7,11 @@
   "author": "zendy199x",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zendy199x/jira-team-work-log-tracking.git"
+    "url": "git+https://github.com/zendy199x/jira-team-work-log-tracking-api.git"
   },
-  "homepage": "https://github.com/zendy199x/jira-team-work-log-tracking#readme",
+  "homepage": "https://github.com/zendy199x/jira-team-work-log-tracking-api#readme",
   "bugs": {
-    "url": "https://github.com/zendy199x/jira-team-work-log-tracking/issues"
+    "url": "https://github.com/zendy199x/jira-team-work-log-tracking-api/issues"
   },
   "keywords": [
     "nestjs",

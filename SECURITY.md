@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The latest version on branch `vercel-deploy` is considered supported.
+The latest version on branch `main` is considered supported.
 
 ## Reporting a Vulnerability
 

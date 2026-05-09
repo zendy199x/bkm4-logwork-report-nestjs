@@ -5,7 +5,7 @@ Thank you for your interest in contributing.
 ## Getting Started
 
 1. Fork the repository.
-1. Create a feature branch from `vercel-deploy`.
+1. Create a feature branch from `main`.
 1. Install dependencies:
 
 ```bash
