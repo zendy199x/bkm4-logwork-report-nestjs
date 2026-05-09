@@ -1,5 +1,10 @@
 {
     "version": 2,
+    "git": {
+        "deploymentEnabled": {
+            "main": false
+        }
+    },
     "functions": {
         "api/**/*.ts": {
             "runtime": "@vercel/node@5.3.24",
