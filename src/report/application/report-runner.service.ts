@@ -1,30 +1,55 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type { AggregatedData, AggregatedUser, GoogleChatEvent } from '../domain/report.types';
-import { ChatDeliveryService } from '../infrastructure/chat-delivery.service';
-import { JiraApiService } from '../infrastructure/jira-api.service';
-import { ReportConfigService } from '../infrastructure/report-config.service';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ReportAggregationService } from '../domain/report-aggregation.service';
+import {
+    CHAT_GATEWAY_PORT,
+    JIRA_GATEWAY_PORT,
+    REPORT_CONFIG_PORT,
+    type ChatGatewayPort,
+    type JiraGatewayPort,
+    type ReportConfigPort,
+} from '../domain/report.ports';
+import type { GoogleChatEvent } from '../domain/report.types';
+import { ReportDate, Timezone } from '../domain/value-objects';
 
 @Injectable()
 export class ReportRunnerService {
   private readonly logger = new Logger(ReportRunnerService.name);
 
   constructor(
-    private readonly configService: ReportConfigService,
-    private readonly jiraApiService: JiraApiService,
-    private readonly chatDeliveryService: ChatDeliveryService,
+    @Inject(REPORT_CONFIG_PORT)
+    private readonly configService: ReportConfigPort,
+    @Inject(JIRA_GATEWAY_PORT)
+    private readonly jiraGateway: JiraGatewayPort,
+    @Inject(CHAT_GATEWAY_PORT)
+    private readonly chatGateway: ChatGatewayPort,
+    private readonly aggregationService: ReportAggregationService,
   ) {}
 
   async runDailyReport(source: string) {
     const cfg = this.configService.getRuntimeConfig();
-    const debugEnabled = this.isAggregationDebugEnabled();
-    const issues = await this.jiraApiService.fetchIssuesWithWorklogs(cfg.jira, debugEnabled);
-    const data = this.aggregateByReportDate(issues, cfg.reportDate, cfg.timezone);
+    const reportDate = ReportDate.from(cfg.reportDate);
+    const timezone = Timezone.from(cfg.timezone);
+    const issues = await this.jiraGateway.fetchIssuesWithWorkLogs(
+      cfg.jira,
+      cfg.jiraQuery,
+      cfg.aggregationDebug.enabled,
+    );
+    const data = this.aggregationService.aggregateByReportDate(issues, reportDate, timezone);
 
-    await this.chatDeliveryService.sendReport(
+    this.logAggregationSummary(
+      cfg.aggregationDebug.enabled,
+      cfg.aggregationDebug.authorFilters,
+      data.users,
+      reportDate.value,
+      timezone.value,
+    );
+
+    await this.chatGateway.sendReport(
       cfg.chat,
       {
         ...data,
         reportDateTimeLabel: cfg.reportDateTimeLabel,
+        reportTitle: cfg.reportTitle,
       },
       cfg.jiraCheckUrl,
     );
@@ -70,13 +95,13 @@ export class ReportRunnerService {
         actionResponse: {
           type: 'NEW_MESSAGE',
         },
-        text: 'Da gui lai report thanh cong.',
+        text: 'Report has been sent again successfully.',
       };
     }
 
     if (eventType === 'ADDED_TO_SPACE') {
       return {
-        text: 'Logwork bot da ket noi. Ban co the bam "Kiem tra lai" tren card report de gui lai bao cao.',
+        text: 'Logwork bot is connected. You can press "Retry" on the report card to send the report again.',
       };
     }
 
@@ -89,39 +114,17 @@ export class ReportRunnerService {
     return this.configService.canTriggerWithToken(token);
   }
 
-  private aggregateByReportDate(
-    issues: Array<{ key?: string; fields?: { worklog?: { worklogs?: Array<any> } } }>,
+  private logAggregationSummary(
+    debugEnabled: boolean,
+    debugAuthorFilters: string[],
+    users: Record<string, { logs: Record<string, number> }>,
     reportDate: string,
     timezone: string,
-  ): AggregatedData {
-    const users: Record<string, AggregatedUser> = {};
-    const debugEnabled = this.isAggregationDebugEnabled();
-    const debugAuthorFilters = this.getDebugAuthorFilters();
-
+  ): void {
     if (debugEnabled) {
       this.logger.log(
         `Aggregation debug enabled for reportDate=${reportDate}, timezone=${timezone}, authorFilters=${debugAuthorFilters.join(',') || 'none'}`,
       );
-    }
-
-    for (const issue of issues) {
-      const issueKey = issue?.key || 'UNKNOWN_ISSUE';
-      const logs = issue?.fields?.worklog?.worklogs || [];
-
-      for (const worklog of logs) {
-        this.aggregateSingleWorklog({
-          worklog,
-          issueKey,
-          reportDate,
-          timezone,
-          users,
-          debugEnabled,
-          debugAuthorFilters,
-        });
-      }
-    }
-
-    if (debugEnabled) {
       const debugRows = Object.entries(users)
         .map(([name, user]) => ({
           name,
@@ -142,64 +145,6 @@ export class ReportRunnerService {
         );
       }
     }
-
-    return { users, reportDate };
-  }
-
-  private aggregateSingleWorklog(params: {
-    worklog: any;
-    issueKey: string;
-    reportDate: string;
-    timezone: string;
-    users: Record<string, AggregatedUser>;
-    debugEnabled: boolean;
-    debugAuthorFilters: string[];
-  }): void {
-    const { worklog, issueKey, reportDate, timezone, users, debugEnabled, debugAuthorFilters } = params;
-    const startedDate = new Date(worklog.started);
-    const startedLocalDate = this.formatDateInTimeZone(startedDate, timezone);
-    const startedLocalTime = this.formatTimeInTimeZone(startedDate, timezone);
-    const name = this.normalizeAuthorName(worklog?.author?.displayName || 'Unknown');
-    const seconds = worklog.timeSpentSeconds || 0;
-
-    if (debugEnabled && this.shouldLogDebugForAuthor(debugAuthorFilters, name)) {
-      const hours = seconds / 3600;
-      this.logger.log(
-        `Worklog issue=${issueKey}, id=${String(worklog?.id || 'UNKNOWN_WORKLOG')}, author=${name}, startedRaw=${String(worklog?.started || '')}, localDate=${startedLocalDate}, localTime=${startedLocalTime}, reportDate=${reportDate}, seconds=${seconds}, hours=${hours}`,
-      );
-    }
-
-    if (startedLocalDate !== reportDate) {
-      if (debugEnabled && this.shouldLogDebugForAuthor(debugAuthorFilters, name)) {
-        this.logger.log(
-          `Skipped worklog issue=${issueKey}, id=${String(worklog?.id || 'UNKNOWN_WORKLOG')}, author=${name} because localDate=${startedLocalDate} != reportDate=${reportDate}`,
-        );
-      }
-      return;
-    }
-
-    if (!users[name]) {
-      users[name] = { logs: {} };
-    }
-
-    users[name].logs[startedLocalDate] = (users[name].logs[startedLocalDate] || 0) + seconds;
-  }
-
-  private isAggregationDebugEnabled(): boolean {
-    const value = (process.env.REPORT_DEBUG || '').trim().toLowerCase();
-    return ['1', 'true', 'yes', 'on'].includes(value);
-  }
-
-  private getDebugAuthorFilters(): string[] {
-    const raw = (process.env.REPORT_DEBUG_AUTHORS || '').trim();
-    if (!raw) {
-      return [];
-    }
-
-    return raw
-      .split(',')
-      .map((item) => this.normalizeAuthorName(item).toLowerCase())
-      .filter(Boolean);
   }
 
   private shouldLogDebugForAuthor(filters: string[], author: string): boolean {
@@ -214,32 +159,6 @@ export class ReportRunnerService {
     const name = rawName.trim();
     const shortName = name.split('(')[0]?.trim();
     return shortName || name;
-  }
-
-  private formatDateInTimeZone(date: Date, timeZone: string): string {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-
-    const parts = formatter.formatToParts(date);
-    const year = parts.find((part) => part.type === 'year')?.value;
-    const month = parts.find((part) => part.type === 'month')?.value;
-    const day = parts.find((part) => part.type === 'day')?.value;
-
-    return `${year}-${month}-${day}`;
-  }
-
-  private formatTimeInTimeZone(date: Date, timeZone: string): string {
-    return new Intl.DateTimeFormat('en-GB', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).format(date);
   }
 
   private formatHoursFromSeconds(totalSeconds: number): string {

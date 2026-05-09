@@ -1,4 +1,5 @@
 import { ReportRunnerService } from '../src/report/application/report-runner.service';
+import { ReportAggregationService } from '../src/report/domain/report-aggregation.service';
 import { ChatDeliveryService } from '../src/report/infrastructure/chat-delivery.service';
 import { JiraApiService } from '../src/report/infrastructure/jira-api.service';
 import { ReportConfigService } from '../src/report/infrastructure/report-config.service';
@@ -47,8 +48,14 @@ function getReportRunner(): ReportRunnerService {
     const configService = new ReportConfigService();
     const jiraApiService = new JiraApiService();
     const chatDeliveryService = new ChatDeliveryService();
+    const aggregationService = new ReportAggregationService();
 
-    cachedRunner = new ReportRunnerService(configService, jiraApiService, chatDeliveryService);
+    cachedRunner = new ReportRunnerService(
+        configService,
+        jiraApiService,
+        chatDeliveryService,
+        aggregationService,
+    );
     return cachedRunner;
 }
 

@@ -1,8 +1,8 @@
 {
-  "name": "bkm4-logwork-report-api",
+  "name": "bkm4-work-log-report-api",
   "version": "1.0.0",
   "private": true,
-  "description": "NestJS service for Jira worklog report with automated cron dispatch",
+  "description": "NestJS service for Jira work log report with automated cron dispatch",
   "packageManager": "pnpm@11.0.8",
   "engines": {
     "node": "22.x"
@@ -11,6 +11,12 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
+    "test": "jest --config jest.config.cjs --runInBand",
+    "test:watch": "jest --config jest.config.cjs --watch",
+    "test:coverage": "jest --config jest.config.cjs --coverage --runInBand",
+    "test:ci": "jest --config jest.config.cjs --ci --runInBand",
+    "check:legacy-phrases": "sh -c 'if grep -rnE \"LOGWORK REPORT|Logwork Report\" README.md src/report/domain/value-objects.ts src/health.controller.ts; then echo \"Found legacy phrases\"; exit 1; else echo \"No legacy phrases found\"; fi'",
+    "ci:verify": "pnpm run test:coverage && pnpm run build && pnpm run check:legacy-phrases",
     "cron:run": "node dist/cron-runner.js",
     "cron:dev": "pnpm install --frozen-lockfile && pnpm run build && pnpm run cron:run"
   },
@@ -47,7 +53,6 @@
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },

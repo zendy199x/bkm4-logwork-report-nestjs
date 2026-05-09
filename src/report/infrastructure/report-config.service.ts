@@ -1,27 +1,54 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatMode, type ChatDeliveryConfig, type ReportRuntimeConfig } from '../domain/report.types';
+import type { ReportConfigPort } from '../domain/report.ports';
+import {
+    ChatMode,
+    type AggregationDebugConfig,
+    type ChatDeliveryConfig,
+    type ReportRuntimeConfig,
+} from '../domain/report.types';
+import { ReportDate, TeamName, Timezone } from '../domain/value-objects';
 
 @Injectable()
-export class ReportConfigService {
+export class ReportConfigService implements ReportConfigPort {
   private readonly logger = new Logger(ReportConfigService.name);
   private static readonly JIRA_REPORT_SELECTED_ITEM =
     'com.atlassian.plugins.atlassian-connect-plugin:com.gebsun.atlassian.reports.free__report';
+  private static readonly JIRA_WORK_LOG_ISSUE_TYPES = [
+    'Sub-Bug',
+    'Sub-Env and SCM',
+    'Sub-Imp',
+    'Sub-Legacy Bug',
+    'Sub PML',
+    'Sub Project Kaizen',
+    'Sub-Test',
+    'Sub Skill Up',
+    'Sub-task',
+    'Sub-ritual',
+    'Sub Refinement',
+    'Sub-overhead',
+    'Sub Test Execution',
+  ];
 
   getRuntimeConfig(): ReportRuntimeConfig {
     const rawDomain = this.requireEnv('JIRA_DOMAIN');
     const jiraDomain = this.normalizeJiraDomain(rawDomain);
-    const teamName = this.requireEnv('TEAM_NAME');
+    const teamName = TeamName.from(this.requireEnv('TEAM_NAME'));
     const jiraCheckUrl = this.resolveJiraCheckUrl(jiraDomain, teamName);
+    const jiraQuery = this.buildJiraQuery(teamName);
+    const reportTitle = this.buildReportTitle(teamName);
     const timezone = this.resolveTimeZone();
     const requestedReportDate = (process.env.REPORT_DATE || '').trim();
-    const reportDate = requestedReportDate || this.formatDateInTimeZone(new Date(), timezone);
-
-    this.validateReportDate(reportDate);
+    const reportDate = requestedReportDate
+      ? ReportDate.from(requestedReportDate)
+      : ReportDate.fromDate(new Date(), timezone);
 
     return {
-      timezone,
-      reportDate,
-      reportDateTimeLabel: this.formatDisplayDateTimeInTimeZone(new Date(), timezone),
+      timezone: timezone.value,
+      reportDate: reportDate.value,
+      reportDateTimeLabel: this.formatDisplayDateTimeInTimeZone(new Date(), timezone.value),
+      reportTitle,
+      jiraQuery,
+      aggregationDebug: this.getAggregationDebugConfig(),
       jiraCheckUrl,
       jira: {
         jiraDomain,
@@ -96,48 +123,38 @@ export class ReportConfigService {
     return ChatMode.WEBHOOK;
   }
 
-  private resolveTimeZone(): string {
+  private resolveTimeZone(): Timezone {
     const fallbackTimeZone = 'Asia/Ho_Chi_Minh';
     const rawReportTimeZone = (process.env.REPORT_TIMEZONE || '').trim();
     const normalizedReportTimeZone = rawReportTimeZone.replaceAll(/^:+/g, '');
 
     if (normalizedReportTimeZone) {
-      if (this.isValidTimeZone(normalizedReportTimeZone)) {
-        return normalizedReportTimeZone;
+      try {
+        return Timezone.from(normalizedReportTimeZone);
+      } catch {
+        this.logger.warn(
+          `Invalid REPORT_TIMEZONE value "${rawReportTimeZone}". Falling back to ${fallbackTimeZone}.`,
+        );
+        return Timezone.from(fallbackTimeZone);
       }
-
-      this.logger.warn(
-        `Invalid REPORT_TIMEZONE value "${rawReportTimeZone}". Falling back to ${fallbackTimeZone}.`,
-      );
-      return fallbackTimeZone;
     }
 
     const rawTimeZone = (process.env.TZ || '').trim();
     const normalizedTimeZone = rawTimeZone.replaceAll(/^:+/g, '');
 
     if (!normalizedTimeZone) {
-      return fallbackTimeZone;
+      return Timezone.from(fallbackTimeZone);
     }
 
     if (['UTC', 'Etc/UTC', 'Etc/GMT'].includes(normalizedTimeZone)) {
-      return fallbackTimeZone;
+      return Timezone.from(fallbackTimeZone);
     }
 
-    if (this.isValidTimeZone(normalizedTimeZone)) {
-      return normalizedTimeZone;
-    }
-
-    this.logger.warn(`Invalid TZ value "${rawTimeZone}". Falling back to ${fallbackTimeZone}.`);
-
-    return fallbackTimeZone;
-  }
-
-  private isValidTimeZone(timeZone: string): boolean {
     try {
-      new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
-      return true;
+      return Timezone.from(normalizedTimeZone);
     } catch {
-      return false;
+      this.logger.warn(`Invalid TZ value "${rawTimeZone}". Falling back to ${fallbackTimeZone}.`);
+      return Timezone.from(fallbackTimeZone);
     }
   }
 
@@ -166,32 +183,51 @@ export class ReportConfigService {
     return normalized.origin;
   }
 
-  private resolveJiraCheckUrl(jiraDomain: string, teamName: string): string {
-    const jiraCheckUrl = new URL(`/projects/${encodeURIComponent(teamName)}`, jiraDomain);
+  private resolveJiraCheckUrl(jiraDomain: string, teamName: TeamName): string {
+    const jiraCheckUrl = new URL(`/projects/${encodeURIComponent(teamName.value)}`, jiraDomain);
     jiraCheckUrl.searchParams.set('selectedItem', ReportConfigService.JIRA_REPORT_SELECTED_ITEM);
     return jiraCheckUrl.toString();
   }
 
-  private validateReportDate(reportDate: string): void {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
-      throw new Error(`Invalid REPORT_DATE format: ${reportDate}. Expected YYYY-MM-DD`);
-    }
+  private buildReportTitle(teamName: TeamName): string {
+    return teamName.toReportTitle();
   }
 
-  private formatDateInTimeZone(date: Date, timeZone: string): string {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+  private buildJiraQuery(teamName: TeamName): string {
+    const issueTypes = ReportConfigService.JIRA_WORK_LOG_ISSUE_TYPES.map((issueType) => {
+      if (issueType.includes(' ')) {
+        return `"${issueType}"`;
+      }
+      return issueType;
+    }).join(', ');
 
-    const parts = formatter.formatToParts(date);
-    const year = parts.find((part) => part.type === 'year')?.value;
-    const month = parts.find((part) => part.type === 'month')?.value;
-    const day = parts.find((part) => part.type === 'day')?.value;
+    return `project = ${teamName.value} AND type IN (${issueTypes}) AND worklogDate >= startOfDay(-2d)`;
+  }
 
-    return `${year}-${month}-${day}`;
+  private getAggregationDebugConfig(): AggregationDebugConfig {
+    const enabled = this.isTruthyValue((process.env.REPORT_DEBUG || '').trim());
+    const rawFilters = (process.env.REPORT_DEBUG_AUTHORS || '').trim();
+    const authorFilters = rawFilters
+      ? rawFilters
+          .split(',')
+          .map((item) => this.normalizeAuthorName(item).toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    return {
+      enabled,
+      authorFilters,
+    };
+  }
+
+  private normalizeAuthorName(rawName: string): string {
+    const name = rawName.trim();
+    const shortName = name.split('(')[0]?.trim();
+    return shortName || name;
+  }
+
+  private isTruthyValue(value: string): boolean {
+    return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
   }
 
   private formatDisplayDateTimeInTimeZone(date: Date, timeZone: string): string {

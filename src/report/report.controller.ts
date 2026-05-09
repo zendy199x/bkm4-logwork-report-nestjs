@@ -1,12 +1,12 @@
 import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  HttpCode,
-  Post,
-  Query,
-  UnauthorizedException,
+    Body,
+    Controller,
+    Get,
+    Headers,
+    HttpCode,
+    Post,
+    Query,
+    UnauthorizedException,
 } from '@nestjs/common';
 
 import { ReportService } from './report.service';

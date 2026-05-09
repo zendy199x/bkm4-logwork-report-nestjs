@@ -11,7 +11,7 @@ export class ReportScheduler {
     @Cron('0 0 17 * * 1-5', { timeZone: 'Asia/Ho_Chi_Minh' })
     async handleWeekdayReportCron() {
         try {
-            await this.reportService.runDailyReport('auto-trigger-worklog-report-cron');
+            await this.reportService.runDailyReport('auto-trigger-work-log-report-cron');
             this.logger.log('Weekday 17:00 report executed successfully');
         } catch (error) {
             this.logger.error('Weekday 17:00 report failed', error as Error);

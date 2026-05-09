@@ -6,8 +6,11 @@ dist
 npm-debug.log*
 pnpm-debug.log*
 coverage
+*.tsbuildinfo
 .idea
 .vscode
 fly.toml
 .vercel
 .env*.local
+errors.txt
+test_output.txt

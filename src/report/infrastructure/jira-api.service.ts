@@ -1,10 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import type { JiraGatewayPort } from '../domain/report.ports';
 import type { Issue, JiraConfig, SearchResponse, WorklogItem, WorklogResponse } from '../domain/report.types';
 
-const TEAM_NAME = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
-const JQL =
-  `project = ${TEAM_NAME} AND type IN (Sub-Bug, "Sub-Env and SCM", Sub-Imp, "Sub-Legacy Bug", "Sub PML", "Sub Project Kaizen", Sub-Test, "Sub Skill Up", Sub-task, Sub-ritual, "Sub Refinement", Sub-overhead, "Sub Test Execution") AND worklogDate >= startOfDay(-2d)`;
 const JIRA_SEARCH_PATH = '/rest/api/3/search/jql';
 const JIRA_ISSUE_WORKLOG_PATH = '/rest/api/3/issue';
 const SEARCH_FIELDS = ['worklog'];
@@ -13,10 +11,14 @@ const PAGE_SIZE = 100;
 const WORKLOG_PAGE_SIZE = 100;
 
 @Injectable()
-export class JiraApiService {
+export class JiraApiService implements JiraGatewayPort {
   private readonly logger = new Logger(JiraApiService.name);
 
-  async fetchIssuesWithWorklogs(jira: JiraConfig, debugEnabled: boolean): Promise<Issue[]> {
+  async fetchIssuesWithWorkLogs(
+    jira: JiraConfig,
+    jql: string,
+    debugEnabled: boolean,
+  ): Promise<Issue[]> {
     const issues: Issue[] = [];
     let nextPageToken: string | undefined;
     let page = 0;
@@ -24,7 +26,7 @@ export class JiraApiService {
     do {
       page += 1;
       const payload: Record<string, unknown> = {
-        jql: JQL,
+        jql,
         maxResults: PAGE_SIZE,
         fields: SEARCH_FIELDS,
         expand: SEARCH_EXPAND,
@@ -57,10 +59,10 @@ export class JiraApiService {
       nextPageToken = response.data?.nextPageToken;
     } while (nextPageToken);
 
-    return this.hydrateIssuesWithFullWorklogs(jira, issues, debugEnabled);
+    return this.hydrateIssuesWithFullWorkLogs(jira, issues, debugEnabled);
   }
 
-  private async hydrateIssuesWithFullWorklogs(
+  private async hydrateIssuesWithFullWorkLogs(
     jira: JiraConfig,
     issues: Issue[],
     debugEnabled: boolean,
@@ -74,7 +76,7 @@ export class JiraApiService {
         continue;
       }
 
-      const fullWorklogs = await this.fetchAllWorklogsForIssue(jira, issueKey, debugEnabled);
+      const fullWorkLogs = await this.fetchAllWorkLogsForIssue(jira, issueKey, debugEnabled);
       const existingWorklogField = issue?.fields?.worklog || {};
 
       hydratedIssues.push({
@@ -85,18 +87,18 @@ export class JiraApiService {
               worklog: {
                 ...existingWorklogField,
                 startAt: 0,
-                maxResults: fullWorklogs.length,
-                total: fullWorklogs.length,
-                worklogs: fullWorklogs,
+                maxResults: fullWorkLogs.length,
+                total: fullWorkLogs.length,
+                worklogs: fullWorkLogs,
               },
             }
           : {
               worklog: {
                 ...existingWorklogField,
                 startAt: 0,
-                maxResults: fullWorklogs.length,
-                total: fullWorklogs.length,
-                worklogs: fullWorklogs,
+                maxResults: fullWorkLogs.length,
+                total: fullWorkLogs.length,
+                worklogs: fullWorkLogs,
               },
             },
       });
@@ -105,7 +107,7 @@ export class JiraApiService {
     return hydratedIssues;
   }
 
-  private async fetchAllWorklogsForIssue(
+  private async fetchAllWorkLogsForIssue(
     jira: JiraConfig,
     issueKey: string,
     debugEnabled: boolean,
@@ -132,24 +134,24 @@ export class JiraApiService {
         },
       );
 
-      const pageWorklogs = response.data?.worklogs || [];
+      const pageWorkLogs = response.data?.worklogs || [];
       const pageTotal = Number(response.data?.total || 0);
       const currentStartAt = Number(response.data?.startAt || startAt);
 
       total = pageTotal;
-      worklogs.push(...pageWorklogs);
+      worklogs.push(...pageWorkLogs);
 
       if (debugEnabled) {
         this.logger.log(
-          `Issue worklogs page issue=${issueKey}, startAt=${currentStartAt}, fetched=${pageWorklogs.length}, fetchedTotal=${worklogs.length}, total=${total}`,
+          `Issue work logs page issue=${issueKey}, startAt=${currentStartAt}, fetched=${pageWorkLogs.length}, fetchedTotal=${worklogs.length}, total=${total}`,
         );
       }
 
-      if (pageWorklogs.length === 0) {
+      if (pageWorkLogs.length === 0) {
         break;
       }
 
-      startAt = currentStartAt + pageWorklogs.length;
+      startAt = currentStartAt + pageWorkLogs.length;
     }
 
     return worklogs;

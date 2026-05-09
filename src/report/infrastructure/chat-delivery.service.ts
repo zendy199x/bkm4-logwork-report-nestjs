@@ -1,18 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { JWT } from 'google-auth-library';
+import type { ChatGatewayPort } from '../domain/report.ports';
 import { ChatMode, type AggregatedData, type AggregatedUser, type ChatDeliveryConfig } from '../domain/report.types';
 
-const TEAM_NAME = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
-const REPORT_TITLE = `-+-${TEAM_NAME} LOGWORK REPORT-+-`;
-
 @Injectable()
-export class ChatDeliveryService {
+export class ChatDeliveryService implements ChatGatewayPort {
   private readonly logger = new Logger(ChatDeliveryService.name);
 
   async sendReport(
     chat: ChatDeliveryConfig,
-    data: AggregatedData & { reportDateTimeLabel: string },
+    data: AggregatedData & { reportDateTimeLabel: string; reportTitle: string },
     jiraCheckUrl: string,
   ): Promise<void> {
     const text = this.buildChatTextReport(data);
@@ -22,7 +20,7 @@ export class ChatDeliveryService {
       const buttons = [
         ...this.buildRetryButtons(chat),
         {
-          text: 'Kiểm tra trên Jira',
+          text: 'Check in Jira',
           onClick: {
             openLink: {
               url: jiraCheckUrl,
@@ -62,6 +60,7 @@ export class ChatDeliveryService {
     users: Record<string, AggregatedUser>;
     reportDate: string;
     reportDateTimeLabel: string;
+    reportTitle: string;
   }): string {
     const rows = Object.entries(data.users)
       .map(([name, user]) => {
@@ -72,13 +71,13 @@ export class ChatDeliveryService {
       .sort((left, right) => right.totalSeconds - left.totalSeconds);
 
     if (rows.length === 0) {
-      const noDataText = 'No worklog data at this time';
+      const noDataText = 'No work log data at this time';
       const noDataBorder = `+${'-'.repeat(noDataText.length + 2)}+`;
       const noDataLine = `| ${noDataText} |`;
 
       return [
         '```',
-        REPORT_TITLE,
+        data.reportTitle,
         `Date: ${data.reportDateTimeLabel}`,
         noDataBorder,
         noDataLine,
@@ -113,7 +112,7 @@ export class ChatDeliveryService {
 
     return [
       '```',
-      REPORT_TITLE,
+      data.reportTitle,
       `Date: ${data.reportDateTimeLabel}`,
       horizontalBorder,
       header,
@@ -130,7 +129,7 @@ export class ChatDeliveryService {
     if (chat.mode === ChatMode.APP) {
       return [
         {
-          text: 'Kiểm tra lại',
+          text: 'Retry',
           onClick: {
             action: {
               function: 'retry_report',
@@ -143,7 +142,7 @@ export class ChatDeliveryService {
     if (chat.reportUrl) {
       return [
         {
-          text: 'Kiểm tra lại',
+          text: 'Retry',
           onClick: {
             openLink: {
               url: chat.reportUrl,

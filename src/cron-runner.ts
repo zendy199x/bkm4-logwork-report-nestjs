@@ -7,7 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ReportService } from './report/report.service';
 
-async function runCron() {
+export async function runCron() {
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['log', 'warn', 'error'],
   });
@@ -21,7 +21,7 @@ async function runCron() {
   }
 }
 
-runCron().catch((error: unknown) => {
+runCron().catch((error) => {
   Logger.error('Cron job failed', error, 'CronRunner');
   process.exitCode = 1;
 });

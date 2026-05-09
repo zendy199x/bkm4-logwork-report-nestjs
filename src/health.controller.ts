@@ -3,9 +3,19 @@ import { Controller, Get, Header } from '@nestjs/common';
 @Controller()
 export class HealthController {
   private readonly teamName = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
+  private readonly apiBasePath = process.env.VERCEL ? '/api' : '';
   private readonly teamSlug =
     this.teamName.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-+|-+$/g, '') ||
     'team';
+
+  private endpoint(pathname: string): string {
+    const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+    if (normalized === '/') {
+      return this.apiBasePath || '/';
+    }
+
+    return `${this.apiBasePath}${normalized}`;
+  }
 
   @Get()
   @Header('Content-Type', 'text/html; charset=utf-8')
@@ -15,7 +25,7 @@ export class HealthController {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${this.teamName} Logwork Report API</title>
+    <title>${this.teamName} Work Log Report API</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233558e6'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='28' fill='white'%3EB%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -223,10 +233,10 @@ export class HealthController {
   <body>
     <main class="container">
       <section class="card">
-        <h1>${this.teamName} Logwork Report API</h1>
+        <h1>${this.teamName} Work Log Report API</h1>
         <p>Service is running.</p>
-        <p>Health check: <a href="/health">/health</a></p>
-        <p>Full guide: <a href="/readme">/readme</a></p>
+        <p>Health check: <a href="${this.endpoint('/health')}">${this.endpoint('/health')}</a></p>
+        <p>Full guide: <a href="${this.endpoint('/help')}">${this.endpoint('/help')}</a></p>
 
         <div class="stats">
           <div class="stat">
@@ -261,31 +271,31 @@ export class HealthController {
             <tbody>
               <tr>
                 <td><span class="chip get">GET</span></td>
-                <td><code>/</code></td>
+                <td><code>${this.endpoint('/')}</code></td>
                 <td>Public</td>
                 <td>Landing page with service overview and endpoint index.</td>
               </tr>
               <tr>
                 <td><span class="chip get">GET</span></td>
-                <td><code>/health</code></td>
+                <td><code>${this.endpoint('/health')}</code></td>
                 <td>Public</td>
                 <td>Health probe returning service metadata and server time.</td>
               </tr>
               <tr>
                 <td><span class="chip post">POST</span></td>
-                <td><code>/reports/run</code></td>
+                <td><code>${this.endpoint('/reports/run')}</code></td>
                 <td><span class="secure">x-cron-secret</span> or <span class="secure">?token=</span></td>
                 <td>Trigger report generation manually from trusted callers.</td>
               </tr>
               <tr>
                 <td><span class="chip get">GET</span></td>
-                <td><code>/reports/retry</code></td>
+                <td><code>${this.endpoint('/reports/retry')}</code></td>
                 <td><span class="secure">?token=</span></td>
                 <td>Retry the report flow from Chat action/open-link callback.</td>
               </tr>
               <tr>
                 <td><span class="chip post">POST</span></td>
-                <td><code>/reports/chat/events</code></td>
+                <td><code>${this.endpoint('/reports/chat/events')}</code></td>
                 <td>Google Chat callback</td>
                 <td>Receive and process inbound Google Chat app events.</td>
               </tr>
@@ -401,7 +411,7 @@ export class HealthController {
                 <td><code>REPORT_DEBUG</code></td>
                 <td><span class="env-chip optional">Optional</span></td>
                 <td class="mono">true</td>
-                <td>Enable detailed worklog aggregation logs.</td>
+                <td>Enable detailed work log aggregation logs.</td>
               </tr>
               <tr>
                 <td><code>REPORT_DEBUG_AUTHORS</code></td>
@@ -419,15 +429,16 @@ export class HealthController {
 </html>`;
   }
 
+  @Get('help')
   @Get('readme')
   @Header('Content-Type', 'text/html; charset=utf-8')
-  readme(): string {
+  help(): string {
     return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${this.teamName} Logwork Report - Setup Guide</title>
+    <title>${this.teamName} Work Log Report - Setup Guide</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233558e6'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='28' fill='white'%3EB%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -680,9 +691,9 @@ export class HealthController {
         <h1>Setup & Deploy Guide</h1>
         <p>This page documents end-to-end setup for local development and Vercel production deployment.</p>
         <div class="hero-links">
-          <a class="pill" href="/">Home</a>
-          <a class="pill" href="/health">Health</a>
-          <a class="pill" href="/readme">Refresh Guide</a>
+          <a class="pill" href="${this.endpoint('/')}">Home</a>
+          <a class="pill" href="${this.endpoint('/health')}">Health</a>
+          <a class="pill" href="${this.endpoint('/help')}">Refresh Guide</a>
         </div>
         <div class="stats">
           <div class="stat">
@@ -784,11 +795,11 @@ npx -y vercel env add WEBHOOK production</pre>
         <article class="card full">
           <div class="step-head"><span class="step-no">7</span><h2>Verify Production</h2></div>
           <ol>
-            <li>Open <code>/health</code> and confirm <code>ok: true</code>.</li>
-            <li>Trigger <code>/reports/run</code> using <code>x-cron-secret</code> or <code>?token=</code>.</li>
+            <li>Open <code>${this.endpoint('/health')}</code> and confirm <code>ok: true</code>.</li>
+            <li>Trigger <code>${this.endpoint('/reports/run')}</code> using <code>x-cron-secret</code> or <code>?token=</code>.</li>
             <li>Check Google Chat receives report + action buttons.</li>
           </ol>
-          <pre>curl -X POST "https://${this.teamSlug}-logwork-report.vercel.app/reports/run?token=YOUR_CRON_SECRET"</pre>
+          <pre>curl -X POST "https://${this.teamSlug}-logwork-report.vercel.app/api/reports/run?token=YOUR_CRON_SECRET"</pre>
         </article>
 
         <article class="card full">
@@ -831,6 +842,10 @@ npx -y vercel env add WEBHOOK production</pre>
     </main>
   </body>
 </html>`;
+  }
+
+  readme(): string {
+    return this.help();
   }
 
   @Get('health')

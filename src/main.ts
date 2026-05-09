@@ -6,7 +6,7 @@ import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
 
-async function bootstrap() {
+export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = Number(process.env.PORT || 3000);
 
@@ -14,7 +14,7 @@ async function bootstrap() {
   Logger.log(`HTTP server is running on port ${port}`, 'Bootstrap');
 }
 
-bootstrap().catch((error: unknown) => {
+bootstrap().catch((error) => {
   Logger.error('Application failed to start', error, 'Bootstrap');
   process.exitCode = 1;
 });

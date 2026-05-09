@@ -47,9 +47,17 @@ export interface ReportRuntimeConfig {
   timezone: string;
   reportDate: string;
   reportDateTimeLabel: string;
+  reportTitle: string;
+  jiraQuery: string;
+  aggregationDebug: AggregationDebugConfig;
   jiraCheckUrl: string;
   jira: JiraConfig;
   chat: ChatDeliveryConfig;
+}
+
+export interface AggregationDebugConfig {
+  enabled: boolean;
+  authorFilters: string[];
 }
 
 export enum ChatMode {

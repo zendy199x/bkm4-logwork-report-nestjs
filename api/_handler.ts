@@ -3,7 +3,7 @@ import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import express, { type NextFunction } from 'express';
+import express from 'express';
 
 import { AppModule } from '../src/app.module';
 
@@ -11,7 +11,7 @@ type ApiRequest = {
     url: string;
 };
 
-type ExpressHandler = (req: ApiRequest, res: unknown, next?: NextFunction) => unknown;
+type ExpressHandler = (req: ApiRequest, res: unknown, next?: () => void) => unknown;
 
 let cachedHandler: ExpressHandler | null = null;
 
@@ -21,7 +21,7 @@ async function getHandler(): Promise<ExpressHandler> {
     }
 
     const expressApp = express();
-    expressApp.use((req: ApiRequest, _res: unknown, next: NextFunction) => {
+    expressApp.use((req: ApiRequest, _res: unknown, next: () => void) => {
         if (req.url === '/api') {
             req.url = '/';
         } else if (req.url.startsWith('/api/')) {
