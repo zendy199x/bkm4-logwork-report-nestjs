@@ -1,47 +1,70 @@
-# Jira Team Work Log Tracking API (NestJS + Vercel)
+# Jira Team Work Log Tracking API
 
-A NestJS API that reads Jira work logs, tracks team effort by report date, and sends summaries to Google Chat.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Node 22.x](https://img.shields.io/badge/Node-22.x-339933?logo=node.js&logoColor=white)](package.json) [![pnpm 11](https://img.shields.io/badge/pnpm-11-F69220?logo=pnpm&logoColor=white)](package.json) [![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+
+Open-source NestJS API for Jira team work log tracking, automated report generation, and Google Chat delivery.
+
+If this project helps your team, consider giving it a star.
+
+## Why This Project
+
+- Track Jira work logs by team and report date with timezone-aware aggregation.
+- Trigger reports manually or on schedule via Vercel cron.
+- Deliver report cards to Google Chat in webhook mode or app mode.
+- Keep architecture modular and easy to extend.
 
 ## Features
 
-- Pull issues/worklogs from Jira with paging support.
-- Aggregate worklogs by report date and timezone.
-- Deliver report to Google Chat in two modes:
-  - `webhook` mode (incoming webhook)
-  - `app` mode (Google Chat App + service account)
-- Trigger report from API endpoints and Vercel cron.
-- Keep report flow modular with layered architecture.
+- Jira issue + worklog fetch with pagination support.
+- Domain-oriented aggregation and value objects.
+- Google Chat delivery:
+  - Webhook mode.
+  - App mode (service account).
+- Trigger endpoints:
+  - Manual run.
+  - Retry flow.
+  - Chat event callback.
+- Health and help pages with environment-aware links.
 
-## Architecture
+## Tech Stack
 
-The report feature is split into layers under `src/report`:
+- NestJS 11
+- TypeScript
+- Axios
+- Jest (strict coverage)
+- Vercel Serverless Functions + Vercel Cron
+
+## Project Structure
 
 ```text
-src/report/
-----| application/
-----| ----| report-runner.service.ts
-----| domain/
-----| ----| report.types.ts
-----| ----| report.ports.ts
-----| ----| value-objects.ts
-----| ----| report-aggregation.service.ts
-----| infrastructure/
-----| ----| report-config.service.ts
-----| ----| jira-api.service.ts
-----| ----| chat-delivery.service.ts
-----| report.service.ts
-----| report.controller.ts
-----| report.scheduler.ts
+api/
+----| _handler.ts
+----| cron.ts
+----| [...path].ts
+----| reports/
+----| ----| run.ts
+----| ----| retry.ts
+----| ----| chat/
+----| ----| ----| events.ts
+src/
+----| app.module.ts
+----| health.controller.ts
+----| report/
+----| ----| application/
+----| ----| domain/
+----| ----| infrastructure/
+----| ----| report.controller.ts
+----| ----| report.service.ts
+----| ----| report.scheduler.ts
+tests/
 ```
-
-Vercel serverless wrappers live in `api/` and forward requests to the Nest app via `api/_handler.ts`.
 
 ## Requirements
 
-- Node.js: `>=22 <25`
-- pnpm: project uses `pnpm@11.0.8`
+- Node.js: 22.x
+- pnpm: 11.x
 
-## Setup
+## Quick Start
 
 1. Install dependencies:
 
@@ -50,94 +73,92 @@ corepack enable
 pnpm install
 ```
 
-1. Copy and configure environment variables:
+1. Create local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-1. Build and run locally:
+1. Start development server:
 
 ```bash
-pnpm run build
 pnpm run start:dev
 ```
 
-Default local URL: `http://localhost:3000`
+Local base URL:
+
+```text
+http://localhost:3000
+```
 
 ## Environment Variables
 
-Reference template: `.env.example`
+Use .env.example as the source of truth.
 
-### Required for runtime
+### Required
 
-- `TEAM_NAME`
-- `JIRA_DOMAIN`
-- `JIRA_EMAIL`
-- `JIRA_API_TOKEN`
-- `CRON_SECRET` for protected triggers in production
+- TEAM_NAME
+- JIRA_DOMAIN
+- JIRA_EMAIL
+- JIRA_API_TOKEN
+- CRON_SECRET (required for secure production triggering)
 
-### Chat mode selection
+### Chat Configuration
 
-- `GOOGLE_CHAT_MODE`: `webhook` or `app`
+GOOGLE_CHAT_MODE can be webhook or app.
 
-If `GOOGLE_CHAT_MODE=webhook`:
+If GOOGLE_CHAT_MODE=webhook:
 
-- `WEBHOOK` (required)
+- WEBHOOK (required)
 
-If `GOOGLE_CHAT_MODE=app`:
+If GOOGLE_CHAT_MODE=app:
 
-- `GOOGLE_CHAT_SPACE` (required)
-- `GOOGLE_CHAT_SERVICE_ACCOUNT_EMAIL` (required)
-- `GOOGLE_CHAT_SERVICE_ACCOUNT_PRIVATE_KEY` (required, keep newlines escaped as `\n` in `.env`)
+- GOOGLE_CHAT_SPACE (required)
+- GOOGLE_CHAT_SERVICE_ACCOUNT_EMAIL (required)
+- GOOGLE_CHAT_SERVICE_ACCOUNT_PRIVATE_KEY (required)
 
-### Optional but recommended
+### Optional
 
-- `APP_BASE_URL` (used to generate retry button URL)
-- `REPORT_TIMEZONE` (highest timezone priority)
-- `TZ` (fallback timezone)
-- `REPORT_DATE` (force report date, format `YYYY-MM-DD`)
-- `REPORT_DEBUG`, `REPORT_DEBUG_AUTHORS`
-- `API_BASE_PATH` (override API prefix when needed)
+- APP_BASE_URL
+- API_BASE_PATH
+- REPORT_TIMEZONE
+- TZ
+- REPORT_DATE
+- REPORT_DEBUG
+- REPORT_DEBUG_AUTHORS
 
-## Endpoints
+## API Endpoints
 
-### Nest routes (local and internal app routing)
+### Internal Nest routes
 
-- `GET /` landing page
-- `GET /help` quick guide page
-- `GET /health` health status
-- `POST /reports/run` manual trigger
-- `GET /reports/retry` retry trigger
-- `POST /reports/chat/events` Google Chat events callback
+- GET /
+- GET /health
+- GET /help
+- GET /readme (legacy alias to /help)
+- POST /reports/run
+- GET /reports/retry
+- POST /reports/chat/events
 
-### Vercel routes (public deployment)
+### Public Vercel routes
 
-`api/_handler.ts` strips `/api` prefix and forwards to Nest routes.
+The serverless handler maps /api/\* to Nest routes.
 
 Examples:
 
-- `POST /api/reports/run` -> `POST /reports/run`
-- `GET /api/reports/retry` -> `GET /reports/retry`
-- `POST /api/reports/chat/events` -> `POST /reports/chat/events`
-- `GET /api` -> `GET /`
-- `GET /api/help` -> `GET /help`
-- `GET /api/health` -> `GET /health`
+- GET /api -> GET /
+- GET /api/health -> GET /health
+- GET /api/help -> GET /help
+- POST /api/reports/run -> POST /reports/run
+- GET /api/reports/retry -> GET /reports/retry
+- POST /api/reports/chat/events -> POST /reports/chat/events
 
-There is also a dedicated cron handler:
+Dedicated cron endpoint:
 
-- `GET /api/cron`
+- GET /api/cron
 
-`/api/cron` validates `CRON_SECRET` from either:
+## Local Testing Commands
 
-- `Authorization: Bearer <CRON_SECRET>`
-- `?token=<CRON_SECRET>`
-
-If `CRON_SECRET` is empty, token check is bypassed (local-friendly mode).
-
-## Local Testing
-
-Health check:
+Health:
 
 ```bash
 curl http://localhost:3000/health
@@ -155,25 +176,21 @@ Retry run:
 curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
 ```
 
-Vercel-style local path test:
-
-```bash
-curl -X POST "http://localhost:3000/api/reports/run?token=YOUR_CRON_SECRET"
-```
-
 ## Scripts
 
-- `pnpm run build` compile Nest app
-- `pnpm run start` start compiled app
-- `pnpm run start:dev` run in watch mode
-- `pnpm run test` run tests in-band
-- `pnpm run test:coverage` run coverage (threshold is strict)
-- `pnpm run test:ci` CI test mode
-- `pnpm run ci:verify` coverage + build + phrase checks
-- `pnpm run cron:run` run compiled cron runner
-- `pnpm run cron:dev` install/build/run cron flow
+```bash
+pnpm run build
+pnpm run start
+pnpm run start:dev
+pnpm run test
+pnpm run test:coverage
+pnpm run test:ci
+pnpm run ci:verify
+pnpm run cron:run
+pnpm run cron:dev
+```
 
-## Vercel Deploy
+## Deploying to Vercel
 
 1. Link project:
 
@@ -182,7 +199,7 @@ pnpm dlx vercel login
 pnpm dlx vercel link
 ```
 
-1. Set production env vars (`TEAM_NAME`, Jira credentials, chat mode vars, `APP_BASE_URL`, `CRON_SECRET`, timezone vars).
+1. Configure Production environment variables in Vercel.
 
 1. Deploy:
 
@@ -190,47 +207,56 @@ pnpm dlx vercel link
 pnpm dlx vercel --prod --yes
 ```
 
-### Cron schedule
+Cron schedule is configured in vercel.json:
 
-Configured in `vercel.json`:
-
-- path: `/api/cron`
+- path: /api/cron
 - schedule: `0 10 * * 1-5`
 
-This is 10:00 UTC (17:00 GMT+7), Monday to Friday.
+## CI and Quality
+
+Recommended pre-merge checks:
+
+```bash
+pnpm run test:coverage
+pnpm run build
+pnpm tsc -p tsconfig.spec.json --noEmit
+```
 
 ## Troubleshooting
 
 ### 401 Invalid or missing cron secret
 
-- Ensure `CRON_SECRET` is set.
-- Pass token via `x-cron-secret`, `Authorization: Bearer ...`, or `?token=...` depending on endpoint.
+- Ensure CRON_SECRET is set correctly.
+- Pass token via header/query as expected by the endpoint.
 
-### Retry button not shown in Google Chat
+### 500 Function Invocation Failed on Vercel
 
-- Check `APP_BASE_URL` format.
-- Ensure webhook mode is used for retry link cards.
-- If `CRON_SECRET` is empty, retry URL is still generated but public.
+- Check Vercel function logs first.
+- Confirm production env vars are complete.
+- Ensure current branch/deployment is the intended one.
 
-### Jira request failure
+### Timezone mismatch
 
-- Verify `JIRA_DOMAIN`, `JIRA_EMAIL`, `JIRA_API_TOKEN`.
-- Confirm `TEAM_NAME` matches Jira project key in your data model.
+- Set REPORT_TIMEZONE explicitly.
+- Use REPORT_DATE for deterministic date checks.
 
-### Timezone/date mismatch
+## Security
 
-- Prefer setting `REPORT_TIMEZONE` explicitly.
-- Use `REPORT_DATE` for forced-date validation.
+- Never commit .env files or secrets.
+- Rotate credentials if exposed.
+- Keep service-account keys and API tokens private.
 
-## Security Notes
-
-- Never commit `.env`, `.env.local`, or secrets.
-- Keep `CRON_SECRET` enabled in production.
-- Do not expose service-account private key in logs.
+See SECURITY.md for disclosure guidance.
 
 ## Community
 
-- Contributions are welcome. See `CONTRIBUTING.md`.
-- Community standards and behavior: `CODE_OF_CONDUCT.md`.
-- Responsible disclosure process: `SECURITY.md`.
-- Open pull requests against branch `main` using `.github/PULL_REQUEST_TEMPLATE.md`.
+- Contributing guide: CONTRIBUTING.md
+- Code of conduct: CODE_OF_CONDUCT.md
+- Security policy: SECURITY.md
+- PR template: .github/PULL_REQUEST_TEMPLATE.md
+
+Contributions are welcome. Issues and pull requests are appreciated.
+
+## License
+
+MIT, see LICENSE.
