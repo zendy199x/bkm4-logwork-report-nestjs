@@ -2,7 +2,7 @@ import { Controller, Get, Header } from '@nestjs/common';
 
 @Controller()
 export class HealthController {
-  private readonly teamName = (process.env.TEAM_NAME || 'BKM4').trim() || 'BKM4';
+  private readonly teamName = (process.env.TEAM_NAME || 'TEAM').trim() || 'TEAM';
   private readonly apiBasePath = process.env.VERCEL ? '/api' : '';
   private readonly teamSlug =
     this.teamName.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-+|-+$/g, '') ||
@@ -25,7 +25,7 @@ export class HealthController {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${this.teamName} Work Log Report API</title>
+    <title>${this.teamName} Jira Team Work Log Tracking API</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233558e6'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='28' fill='white'%3EB%3C/text%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -233,7 +233,7 @@ export class HealthController {
   <body>
     <main class="container">
       <section class="card">
-        <h1>${this.teamName} Work Log Report API</h1>
+        <h1>${this.teamName} Jira Team Work Log Tracking API</h1>
         <p>Service is running.</p>
         <p>Health check: <a href="${this.endpoint('/health')}">${this.endpoint('/health')}</a></p>
         <p>Full guide: <a href="${this.endpoint('/help')}">${this.endpoint('/help')}</a></p>
@@ -398,7 +398,7 @@ export class HealthController {
               <tr>
                 <td><code>APP_BASE_URL</code></td>
                 <td><span class="env-chip optional">Optional</span></td>
-                <td class="mono">https://${this.teamSlug}-logwork-report.vercel.app</td>
+                <td class="mono">https://${this.teamSlug}-jira-work-log-tracking.vercel.app</td>
                 <td>Used to build retry link for Chat cards.</td>
               </tr>
               <tr>
@@ -706,7 +706,7 @@ export class HealthController {
           </div>
           <div class="stat">
             <div class="label">Target Domain</div>
-            <div class="value">${this.teamSlug}-logwork-report.vercel.app</div>
+            <div class="value">${this.teamSlug}-jira-work-log-tracking.vercel.app</div>
           </div>
           <div class="stat">
             <div class="label">Auth Mode</div>
@@ -751,8 +751,8 @@ pnpm run start:dev</pre>
           <pre>git checkout vercel-deploy
 git pull --ff-only origin vercel-deploy
 npx -y vercel deploy --prod --yes
-npx -y vercel alias set &lt;deployment-url&gt; ${this.teamSlug}-logwork-report.vercel.app</pre>
-          <div class="callout ok">Recommended: keep production domain as <code>${this.teamSlug}-logwork-report.vercel.app</code>.</div>
+npx -y vercel alias set &lt;deployment-url&gt; ${this.teamSlug}-jira-work-log-tracking.vercel.app</pre>
+          <div class="callout ok">Recommended: keep production domain as <code>${this.teamSlug}-jira-work-log-tracking.vercel.app</code>.</div>
         </article>
 
         <article class="card">
@@ -799,7 +799,7 @@ npx -y vercel env add WEBHOOK production</pre>
             <li>Trigger <code>${this.endpoint('/reports/run')}</code> using <code>x-cron-secret</code> or <code>?token=</code>.</li>
             <li>Check Google Chat receives report + action buttons.</li>
           </ol>
-          <pre>curl -X POST "https://${this.teamSlug}-logwork-report.vercel.app/api/reports/run?token=YOUR_CRON_SECRET"</pre>
+          <pre>curl -X POST "https://${this.teamSlug}-jira-work-log-tracking.vercel.app/api/reports/run?token=YOUR_CRON_SECRET"</pre>
         </article>
 
         <article class="card full">
@@ -852,7 +852,7 @@ npx -y vercel env add WEBHOOK production</pre>
   health() {
     return {
       ok: true,
-      service: `${this.teamSlug}-logwork-report-api`,
+      service: `${this.teamSlug}-jira-work-log-tracking-api`,
       now: new Date().toISOString(),
     };
   }

@@ -1,8 +1,26 @@
 {
-  "name": "bkm4-work-log-report-api",
+  "name": "jira-team-work-log-tracking-api",
   "version": "1.0.0",
-  "private": true,
-  "description": "NestJS service for Jira work log report with automated cron dispatch",
+  "license": "MIT",
+  "private": false,
+  "description": "NestJS API for Jira team work log tracking with Google Chat integration and Vercel cron",
+  "author": "zendy199x",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zendy199x/jira-team-work-log-tracking.git"
+  },
+  "homepage": "https://github.com/zendy199x/jira-team-work-log-tracking#readme",
+  "bugs": {
+    "url": "https://github.com/zendy199x/jira-team-work-log-tracking/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "jira",
+    "worklog",
+    "tracking",
+    "google-chat",
+    "vercel"
+  ],
   "packageManager": "pnpm@11.0.8",
   "engines": {
     "node": "22.x"

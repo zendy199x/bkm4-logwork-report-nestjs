@@ -2,23 +2,25 @@ import { HealthController } from '../src/health.controller';
 
 describe('HealthController', () => {
   const originalTeamName = process.env.TEAM_NAME;
+  const originalVercel = process.env.VERCEL;
 
   afterEach(() => {
     process.env.TEAM_NAME = originalTeamName;
+    process.env.VERCEL = originalVercel;
   });
 
   it('returns home page html', () => {
-    process.env.TEAM_NAME = 'BKM4';
+    process.env.TEAM_NAME = 'TEAM';
     const controller = new HealthController();
 
     const html = controller.home();
 
-    expect(html).toContain('Work Log Report API');
+    expect(html).toContain('Jira Team Work Log Tracking API');
     expect(html).toContain('/reports/run');
   });
 
   it('returns help page html', () => {
-    process.env.TEAM_NAME = 'BKM4';
+    process.env.TEAM_NAME = 'TEAM';
     const controller = new HealthController();
 
     const html = controller.help();
@@ -28,20 +30,20 @@ describe('HealthController', () => {
   });
 
   it('keeps readme alias method for backward compatibility', () => {
-    process.env.TEAM_NAME = 'BKM4';
+    process.env.TEAM_NAME = 'TEAM';
     const controller = new HealthController();
 
     expect(controller.readme()).toContain('Setup Guide');
   });
 
   it('returns health payload', () => {
-    process.env.TEAM_NAME = 'BKM4';
+    process.env.TEAM_NAME = 'TEAM';
     const controller = new HealthController();
 
     const payload = controller.health();
 
     expect(payload.ok).toBe(true);
-    expect(payload.service).toBe('bkm4-logwork-report-api');
+    expect(payload.service).toBe('team-jira-work-log-tracking-api');
     expect(new Date(payload.now).toISOString()).toBe(payload.now);
   });
 
@@ -51,24 +53,34 @@ describe('HealthController', () => {
 
     const payload = controller.health();
 
-    expect(payload.service).toBe('team-logwork-report-api');
+    expect(payload.service).toBe('team-jira-work-log-tracking-api');
   });
 
-  it('falls back team name to BKM4 when TEAM_NAME is blank', () => {
+  it('falls back team name to TEAM when TEAM_NAME is blank', () => {
     process.env.TEAM_NAME = '   ';
     const controller = new HealthController();
 
     const payload = controller.health();
 
-    expect(payload.service).toBe('bkm4-logwork-report-api');
+    expect(payload.service).toBe('team-jira-work-log-tracking-api');
   });
 
-  it('falls back team name to BKM4 when TEAM_NAME is undefined', () => {
+  it('falls back team name to TEAM when TEAM_NAME is undefined', () => {
     delete process.env.TEAM_NAME;
     const controller = new HealthController();
 
     const payload = controller.health();
 
-    expect(payload.service).toBe('bkm4-logwork-report-api');
+    expect(payload.service).toBe('team-jira-work-log-tracking-api');
+  });
+
+  it('prefixes endpoints with /api when running on Vercel', () => {
+    process.env.TEAM_NAME = 'TEAM';
+    process.env.VERCEL = '1';
+    const controller = new HealthController();
+
+    expect(controller['endpoint']('/')).toBe('/api');
+    expect(controller['endpoint']('/health')).toBe('/api/health');
+    expect(controller['endpoint']('help')).toBe('/api/help');
   });
 });

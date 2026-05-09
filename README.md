@@ -1,6 +1,6 @@
-# Work Log Report API (NestJS + Vercel)
+# Jira Team Work Log Tracking API (NestJS + Vercel)
 
-A NestJS service that reads Jira work logs, aggregates hours by author for a report date, and sends the report to Google Chat.
+A NestJS API that reads Jira work logs, tracks team effort by report date, and sends summaries to Google Chat.
 
 ## Features
 
@@ -227,3 +227,10 @@ This is 10:00 UTC (17:00 GMT+7), Monday to Friday.
 - Never commit `.env`, `.env.local`, or secrets.
 - Keep `CRON_SECRET` enabled in production.
 - Do not expose service-account private key in logs.
+
+## Community
+
+- Contributions are welcome. See `CONTRIBUTING.md`.
+- Community standards and behavior: `CODE_OF_CONDUCT.md`.
+- Responsible disclosure process: `SECURITY.md`.
+- Open pull requests against branch `vercel-deploy` using `.github/PULL_REQUEST_TEMPLATE.md`.

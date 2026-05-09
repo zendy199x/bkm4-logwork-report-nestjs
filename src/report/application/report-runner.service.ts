@@ -101,7 +101,7 @@ export class ReportRunnerService {
 
     if (eventType === 'ADDED_TO_SPACE') {
       return {
-        text: 'Logwork bot is connected. You can press "Retry" on the report card to send the report again.',
+        text: 'Work log tracking bot is connected. You can press "Retry" on the report card to send the report again.',
       };
     }
 
