@@ -174,10 +174,16 @@ Manual run:
 curl -X POST "http://localhost:3000/reports/run?token=YOUR_CRON_SECRET"
 ```
 
-Retry run:
+Open retry confirmation page:
 
 ```bash
 curl "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
+```
+
+Trigger retry directly:
+
+```bash
+curl -X POST "http://localhost:3000/reports/retry?token=YOUR_CRON_SECRET"
 ```
 
 ## Scripts

@@ -76,6 +76,7 @@ export type ChatDeliveryConfig =
       space: string;
       serviceAccountEmail: string;
       serviceAccountPrivateKey: string;
+      reportUrl?: string;
     };
 
 export interface AggregatedIssue {

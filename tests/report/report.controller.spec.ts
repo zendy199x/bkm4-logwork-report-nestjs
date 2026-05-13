@@ -56,6 +56,14 @@ describe('ReportController', () => {
     expect(service.canTriggerWithToken).toHaveBeenCalledWith('');
   });
 
+  it('renders retry confirmation page', () => {
+    const html = controller.retryPage();
+
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('<script>');
+  });
+
   it('runs retry endpoint when authorized', async () => {
     service.canTriggerWithToken.mockReturnValue(true);
     service.runDailyReport.mockResolvedValue({ source: 'x' });

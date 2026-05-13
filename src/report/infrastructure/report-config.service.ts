@@ -83,6 +83,7 @@ export class ReportConfigService implements ReportConfigPort {
   }
 
   private getChatDeliveryConfig(): ChatDeliveryConfig {
+    const reportUrl = this.buildRetryReportUrl();
     const mode = this.resolveChatMode();
 
     if (mode === ChatMode.APP) {
@@ -94,10 +95,9 @@ export class ReportConfigService implements ReportConfigPort {
           String.raw`\n`,
           '\n',
         ),
+        ...(reportUrl ? { reportUrl } : {}),
       };
     }
-
-    const reportUrl = this.buildRetryReportUrl();
 
     return {
       mode: ChatMode.WEBHOOK,
@@ -266,6 +266,11 @@ export class ReportConfigService implements ReportConfigPort {
       return null;
     }
 
+    if (this.isLocalhostHost(baseUrl.hostname) && baseUrl.protocol === 'https:') {
+      baseUrl.protocol = 'http:';
+      this.logger.warn('APP_BASE_URL uses https on localhost. Falling back to http for retry URL.');
+    }
+
     const configuredApiBasePath = (process.env.API_BASE_PATH || '').trim();
     const defaultApiBasePath = process.env.VERCEL ? '/api' : '';
     const rawApiBasePath = configuredApiBasePath || defaultApiBasePath;
@@ -297,5 +302,15 @@ export class ReportConfigService implements ReportConfigPort {
 
     const port = (process.env.PORT || '').trim() || '3000';
     return `http://localhost:${port}`;
+  }
+
+  private isLocalhostHost(hostname: string): boolean {
+    const normalized = hostname.trim().toLowerCase();
+    return (
+      normalized === 'localhost' ||
+      normalized === '127.0.0.1' ||
+      normalized === '::1' ||
+      normalized.endsWith('.localhost')
+    );
   }
 }

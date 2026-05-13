@@ -241,11 +241,11 @@ export class HealthController {
         <div class="stats">
           <div class="stat">
             <div class="label">Total Endpoints</div>
-            <div class="value">5</div>
+            <div class="value">6</div>
           </div>
           <div class="stat">
             <div class="label">GET</div>
-            <div class="value">3</div>
+            <div class="value">4</div>
           </div>
           <div class="stat">
             <div class="label">POST</div>
@@ -253,7 +253,7 @@ export class HealthController {
           </div>
           <div class="stat">
             <div class="label">Secured</div>
-            <div class="value">2</div>
+            <div class="value">3</div>
           </div>
         </div>
 
@@ -292,6 +292,12 @@ export class HealthController {
                 <td><code>${this.endpoint('/reports/retry')}</code></td>
                 <td><span class="secure">?token=</span></td>
                 <td>Retry the report flow from Chat action/open-link callback.</td>
+              </tr>
+              <tr>
+                <td><span class="chip get">GET</span></td>
+                <td><code>/api/cron</code></td>
+                <td><span class="secure">Authorization: Bearer</span> or <span class="secure">?token=</span></td>
+                <td>Dedicated Vercel cron trigger endpoint for scheduled report runs.</td>
               </tr>
               <tr>
                 <td><span class="chip post">POST</span></td>

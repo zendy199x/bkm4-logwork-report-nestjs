@@ -84,6 +84,34 @@ describe('ChatDeliveryService', () => {
     expect(JSON.stringify(postMock.mock.calls)).toContain('Bearer mock-token');
   });
 
+  it('uses openLink retry button in app mode when reportUrl is provided', async () => {
+    postMock.mockImplementation(async () => ({}));
+    const service = new ChatDeliveryService();
+    const appChatConfig = {
+      mode: ChatMode.APP,
+      space: 'spaces/AAA',
+      serviceAccountEmail: 'svc@example.com',
+      serviceAccountPrivateKey: 'key',
+      reportUrl: 'http://localhost:3000/reports/retry?token=abc',
+    };
+
+    await service.sendReport(
+      appChatConfig as unknown as Parameters<ChatDeliveryService['sendReport']>[0],
+      {
+        users: { Bob: { logs: { '2026-05-09': 1200 } } },
+        reportDate: '2026-05-09',
+        reportDateTimeLabel: 'May 9',
+        reportTitle: '-+-BKM4 WORK LOG REPORT-+-',
+      },
+      'https://jira/check',
+    );
+
+    const cardPayload = postMock.mock.calls[1]?.[1] as Record<string, unknown>;
+    expect(JSON.stringify(cardPayload)).toContain('"openLink"');
+    expect(JSON.stringify(cardPayload)).toContain('http://localhost:3000/reports/retry?token=abc');
+    expect(JSON.stringify(cardPayload)).not.toContain('"retry_report"');
+  });
+
   it('throws if webhook mode has no webhook', async () => {
     const service = new ChatDeliveryService();
 

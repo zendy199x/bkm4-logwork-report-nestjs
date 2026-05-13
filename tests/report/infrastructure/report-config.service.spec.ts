@@ -60,6 +60,25 @@ describe('ReportConfigService', () => {
       throw new Error('Expected app chat mode');
     }
     expect(config.chat.serviceAccountPrivateKey).toContain('\n');
+    expect((config.chat as { reportUrl?: string }).reportUrl).toContain('/reports/retry');
+  });
+
+  it('normalizes localhost https APP_BASE_URL to http for retry url', () => {
+    setBaseEnv();
+    process.env.APP_BASE_URL = 'https://localhost:3000';
+    process.env.CRON_SECRET = 'abc';
+
+    const service = new ReportConfigService();
+    const warnSpy = jest.spyOn(service['logger'], 'warn').mockImplementation(() => undefined);
+    const config = service.getRuntimeConfig();
+
+    if (config.chat.mode !== 'webhook') {
+      throw new Error('Expected webhook chat mode');
+    }
+    expect(config.chat.reportUrl).toContain('http://localhost:3000/reports/retry');
+    expect(warnSpy).toHaveBeenCalledWith(
+      'APP_BASE_URL uses https on localhost. Falling back to http for retry URL.',
+    );
   });
 
   it('falls back on invalid chat mode and timezone', () => {

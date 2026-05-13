@@ -126,19 +126,6 @@ export class ChatDeliveryService implements ChatGatewayPort {
   }
 
   private buildRetryButtons(chat: ChatDeliveryConfig): Array<Record<string, unknown>> {
-    if (chat.mode === ChatMode.APP) {
-      return [
-        {
-          text: 'Retry',
-          onClick: {
-            action: {
-              function: 'retry_report',
-            },
-          },
-        },
-      ];
-    }
-
     if (chat.reportUrl) {
       return [
         {
@@ -146,6 +133,19 @@ export class ChatDeliveryService implements ChatGatewayPort {
           onClick: {
             openLink: {
               url: chat.reportUrl,
+            },
+          },
+        },
+      ];
+    }
+
+    if (chat.mode === ChatMode.APP) {
+      return [
+        {
+          text: 'Retry',
+          onClick: {
+            action: {
+              function: 'retry_report',
             },
           },
         },
