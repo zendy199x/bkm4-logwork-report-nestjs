@@ -46,7 +46,7 @@ export class ReportController {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <title>${escapedTeamName} Work Log Report Retry</title>
+    <title>Retry report - ${escapedTeamName}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -107,6 +107,7 @@ export class ReportController {
       .panel-top {
         display: flex;
         justify-content: flex-end;
+        margin-bottom: clamp(10px, 2vw, 18px);
       }
 
       .lang-switch {
@@ -134,7 +135,7 @@ export class ReportController {
       }
 
       h1 {
-        margin: 0;
+        margin: 2px 0 0;
         font-size: clamp(28px, 5vw, 44px);
         line-height: 1.08;
         letter-spacing: -0.02em;
@@ -205,6 +206,7 @@ export class ReportController {
       .confirm {
         color: #fff;
         background: var(--primary);
+        min-width: 180px;
         box-shadow: 0 8px 18px rgba(53, 88, 230, 0.3);
       }
 
@@ -270,7 +272,7 @@ export class ReportController {
         </button>
       </div>
 
-      <h1 id="titleText">${escapedTeamName} Work Log Report Retry</h1>
+      <h1 id="titleText">Retry report - ${escapedTeamName}</h1>
       <div class="realtime-top" aria-live="polite">
         <div id="localTime" class="realtime-value">--</div>
       </div>
@@ -298,12 +300,12 @@ export class ReportController {
         var translations = {
           en: {
             langButton: 'EN',
-            pageTitle: 'Retry the report for team {team}',
+            pageTitle: 'Retry report - {team}',
             question: 'Do you want to retry sending the report now?',
             retryCountTitle: 'Retry Count Today',
             localTimeTitle: 'Local Time',
             confirm: 'Confirm Retry',
-            buttonRetrying: 'Retrying',
+            buttonRetrying: 'Đang gửi lại',
             cancel: 'Cancel',
             statusIdle: 'You have not retried any report today.',
             statusCanceled: 'Action canceled. No report was sent.',
@@ -322,7 +324,7 @@ export class ReportController {
           },
           vi: {
             langButton: 'VI',
-            pageTitle: 'Gửi lại report của team {team}',
+            pageTitle: 'Gửi lại report - {team}',
             question: 'Bạn có muốn gửi lại report ngay bây giờ không?',
             retryCountTitle: 'Số lần đã gửi lại hôm nay',
             localTimeTitle: 'Giờ local hiện tại',
@@ -387,6 +389,8 @@ export class ReportController {
           countTitleEl.textContent = i18n.retryCountTitle;
           if (loadingTimerId === null) {
             confirmBtn.textContent = i18n.confirm;
+            confirmBtn.style.width = 'auto';
+            confirmBtn.style.width = confirmBtn.offsetWidth + 'px';
           }
           cancelBtn.textContent = i18n.cancel;
           langSwitchText.textContent = i18n.langButton;
@@ -399,7 +403,6 @@ export class ReportController {
           var dots = ['.', '..', '...'];
           var frame = 0;
 
-          confirmBtn.style.width = confirmBtn.offsetWidth + 'px';
           confirmBtn.textContent = i18n.buttonRetrying + dots[frame];
 
           loadingTimerId = setInterval(function () {
@@ -414,7 +417,6 @@ export class ReportController {
             loadingTimerId = null;
           }
 
-          confirmBtn.style.width = '';
           confirmBtn.textContent = getI18n().confirm;
         }
 
