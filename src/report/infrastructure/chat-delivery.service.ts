@@ -2,7 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { JWT } from 'google-auth-library';
 import type { ChatGatewayPort } from '../domain/report.ports';
-import { ChatMode, type AggregatedData, type AggregatedUser, type ChatDeliveryConfig } from '../domain/report.types';
+import {
+    ChatMode,
+    type AggregatedUser,
+    type ChatDeliveryConfig,
+    type ReportChatPayload,
+} from '../domain/report.types';
 
 @Injectable()
 export class ChatDeliveryService implements ChatGatewayPort {
@@ -10,7 +15,7 @@ export class ChatDeliveryService implements ChatGatewayPort {
 
   async sendReport(
     chat: ChatDeliveryConfig,
-    data: AggregatedData & { reportDateTimeLabel: string; reportTitle: string },
+    data: ReportChatPayload,
     jiraCheckUrl: string,
   ): Promise<void> {
     const text = this.buildChatTextReport(data);

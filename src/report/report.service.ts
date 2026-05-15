@@ -9,6 +9,10 @@ export class ReportService {
     return this.reportRunnerService.runDailyReport(source);
   }
 
+  async retryDailyReportWithCache(source: string) {
+    return this.reportRunnerService.retryDailyReportWithCache(source);
+  }
+
   canTriggerWithToken(token: string): boolean {
     return this.reportRunnerService.canTriggerWithToken(token);
   }

@@ -11,6 +11,7 @@ describe('ReportRunnerService', () => {
   let configService: any;
   let jiraGateway: any;
   let chatGateway: any;
+  let lastReportCache: any;
   let aggregationService: any;
   let service: any;
 
@@ -36,8 +37,18 @@ describe('ReportRunnerService', () => {
       aggregateByReportDate: jest.fn().mockReturnValue({ users: { Alice: { logs: { '2026-05-09': 3600 } } }, reportDate: '2026-05-09' }),
     };
     chatGateway = { sendReport: jest.fn().mockResolvedValue(undefined) };
+    lastReportCache = {
+      getLastReportPayload: jest.fn().mockResolvedValue(null),
+      setLastReportPayload: jest.fn().mockResolvedValue(undefined),
+    };
 
-    service = new ReportRunnerService(configService, jiraGateway, chatGateway, aggregationService);
+    service = new ReportRunnerService(
+      configService,
+      jiraGateway,
+      chatGateway,
+      lastReportCache,
+      aggregationService,
+    );
     jest.spyOn(service['logger'], 'log').mockImplementation(() => undefined);
   });
 
@@ -47,6 +58,7 @@ describe('ReportRunnerService', () => {
     expect(jiraGateway.fetchIssuesWithWorkLogs).toHaveBeenCalled();
     expect(aggregationService.aggregateByReportDate).toHaveBeenCalled();
     expect(chatGateway.sendReport).toHaveBeenCalled();
+    expect(lastReportCache.setLastReportPayload).toHaveBeenCalled();
     expect(summary).toEqual({
       source: 'manual',
       reportDate: '2026-05-09',
@@ -71,7 +83,7 @@ describe('ReportRunnerService', () => {
   });
 
   it('handles retry card click', async () => {
-    jest.spyOn(service, 'runDailyReport').mockResolvedValue({});
+    jest.spyOn(service, 'retryDailyReportWithCache').mockResolvedValue({});
 
     const result = await service.handleGoogleChatEvent({
       type: 'CARD_CLICKED',
@@ -79,29 +91,63 @@ describe('ReportRunnerService', () => {
     });
 
     expect(result.text).toContain('successfully');
-    expect(service.runDailyReport).toHaveBeenCalledWith('google-chat-action-retry');
+    expect(service.retryDailyReportWithCache).toHaveBeenCalledWith('google-chat-action-retry');
   });
 
   it('handles retry action from common.invokedFunction', async () => {
-    jest.spyOn(service, 'runDailyReport').mockResolvedValue({});
+    jest.spyOn(service, 'retryDailyReportWithCache').mockResolvedValue({});
 
     await service.handleGoogleChatEvent({
       type: 'CARD_CLICKED',
       common: { invokedFunction: 'retry_report' },
     });
 
-    expect(service.runDailyReport).toHaveBeenCalledWith('google-chat-action-retry');
+    expect(service.retryDailyReportWithCache).toHaveBeenCalledWith('google-chat-action-retry');
   });
 
   it('handles retry action from commonEventObject.invokedFunction', async () => {
-    jest.spyOn(service, 'runDailyReport').mockResolvedValue({});
+    jest.spyOn(service, 'retryDailyReportWithCache').mockResolvedValue({});
 
     await service.handleGoogleChatEvent({
       type: 'CARD_CLICKED',
       commonEventObject: { invokedFunction: 'retry_report' },
     });
 
-    expect(service.runDailyReport).toHaveBeenCalledWith('google-chat-action-retry');
+    expect(service.retryDailyReportWithCache).toHaveBeenCalledWith('google-chat-action-retry');
+  });
+
+  it('sends cached report immediately and triggers background refresh', async () => {
+    lastReportCache.getLastReportPayload.mockResolvedValue({
+      payload: {
+        users: { Alice: { logs: { '2026-05-09': 3600 } } },
+        reportDate: '2026-05-09',
+        reportDateTimeLabel: 'May 9, 2026, 1:00:00 PM (+00:00)',
+        reportTitle: '-+-BKM4 WORK LOG REPORT-+-',
+      },
+      jiraCheckUrl: 'https://jira.example.com/projects/BKM4',
+      reportDate: '2026-05-09',
+      source: 'cron',
+      cachedAt: '2026-05-09T10:00:00.000Z',
+    });
+
+    const runSpy = jest.spyOn(service, 'runDailyReport').mockResolvedValue({ ok: true });
+
+    const result = await service.retryDailyReportWithCache('chat-retry-button');
+
+    expect(chatGateway.sendReport).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith('chat-retry-button-background-refresh');
+    expect(result).toMatchObject({ cacheHit: true, backgroundRefresh: true });
+  });
+
+  it('starts background refresh when cache is missing', async () => {
+    lastReportCache.getLastReportPayload.mockResolvedValue(null);
+    const runSpy = jest.spyOn(service, 'runDailyReport').mockResolvedValue({ ok: true });
+
+    const result = await service.retryDailyReportWithCache('chat-retry-button');
+
+    expect(chatGateway.sendReport).not.toHaveBeenCalled();
+    expect(runSpy).toHaveBeenCalledWith('chat-retry-button-background-refresh');
+    expect(result).toMatchObject({ cacheHit: false, backgroundRefresh: true });
   });
 
   it('returns OK for card click when action is not retry', async () => {

@@ -3,12 +3,14 @@ import { ReportAggregationService } from '../domain/report-aggregation.service';
 import {
     CHAT_GATEWAY_PORT,
     JIRA_GATEWAY_PORT,
+    LAST_REPORT_CACHE_PORT,
     REPORT_CONFIG_PORT,
     type ChatGatewayPort,
     type JiraGatewayPort,
+    type LastReportCachePort,
     type ReportConfigPort,
 } from '../domain/report.ports';
-import type { GoogleChatEvent } from '../domain/report.types';
+import type { GoogleChatEvent, ReportChatPayload } from '../domain/report.types';
 import { ReportDate, Timezone } from '../domain/value-objects';
 
 @Injectable()
@@ -22,6 +24,8 @@ export class ReportRunnerService {
     private readonly jiraGateway: JiraGatewayPort,
     @Inject(CHAT_GATEWAY_PORT)
     private readonly chatGateway: ChatGatewayPort,
+    @Inject(LAST_REPORT_CACHE_PORT)
+    private readonly lastReportCache: LastReportCachePort,
     private readonly aggregationService: ReportAggregationService,
   ) {}
 
@@ -44,15 +48,29 @@ export class ReportRunnerService {
       timezone.value,
     );
 
+    const reportPayload: ReportChatPayload = {
+      ...data,
+      reportDateTimeLabel: cfg.reportDateTimeLabel,
+      reportTitle: cfg.reportTitle,
+    };
+
     await this.chatGateway.sendReport(
       cfg.chat,
-      {
-        ...data,
-        reportDateTimeLabel: cfg.reportDateTimeLabel,
-        reportTitle: cfg.reportTitle,
-      },
+      reportPayload,
       cfg.jiraCheckUrl,
     );
+
+    try {
+      await this.lastReportCache.setLastReportPayload({
+        payload: reportPayload,
+        jiraCheckUrl: cfg.jiraCheckUrl,
+        reportDate: cfg.reportDate,
+        source,
+        cachedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      this.logger.warn(`Unable to cache latest report payload: ${(error as Error).message}`);
+    }
 
     const userCount = Object.values(data.users).filter((user) => (user.logs[cfg.reportDate] || 0) > 0)
       .length;
@@ -76,6 +94,38 @@ export class ReportRunnerService {
     return summary;
   }
 
+  async retryDailyReportWithCache(source: string) {
+    const cfg = this.configService.getRuntimeConfig();
+    let cachedReport = null;
+
+    try {
+      cachedReport = await this.lastReportCache.getLastReportPayload();
+    } catch (error) {
+      this.logger.warn(`Unable to read cached report payload: ${(error as Error).message}`);
+    }
+
+    if (cachedReport) {
+      await this.chatGateway.sendReport(cfg.chat, cachedReport.payload, cachedReport.jiraCheckUrl);
+      this.triggerBackgroundRefresh(`${source}-background-refresh`);
+
+      return {
+        source,
+        cacheHit: true,
+        backgroundRefresh: true,
+        message: 'Cached report sent immediately. Fresh report is being refreshed in background.',
+      };
+    }
+
+    this.triggerBackgroundRefresh(`${source}-background-refresh`);
+
+    return {
+      source,
+      cacheHit: false,
+      backgroundRefresh: true,
+      message: 'No cached report available. Fresh report is being refreshed in background.',
+    };
+  }
+
   async handleGoogleChatEvent(event: unknown): Promise<Record<string, unknown>> {
     const chatEvent = (event || {}) as GoogleChatEvent & {
       common?: { invokedFunction?: string };
@@ -90,7 +140,7 @@ export class ReportRunnerService {
       '';
 
     if (eventType === 'CARD_CLICKED' && this.configService.isRetryAction(invokedFunction)) {
-      await this.runDailyReport('google-chat-action-retry');
+      await this.retryDailyReportWithCache('google-chat-action-retry');
       return {
         actionResponse: {
           type: 'NEW_MESSAGE',
@@ -112,6 +162,12 @@ export class ReportRunnerService {
 
   canTriggerWithToken(token: string): boolean {
     return this.configService.canTriggerWithToken(token);
+  }
+
+  private triggerBackgroundRefresh(source: string): void {
+    void this.runDailyReport(source).catch((error) => {
+      this.logger.error(`Background report refresh failed for source=${source}`, error as Error);
+    });
   }
 
   private logAggregationSummary(

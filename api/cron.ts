@@ -3,6 +3,7 @@ import { ReportAggregationService } from '../src/report/domain/report-aggregatio
 import { ChatDeliveryService } from '../src/report/infrastructure/chat-delivery.service';
 import { JiraApiService } from '../src/report/infrastructure/jira-api.service';
 import { ReportConfigService } from '../src/report/infrastructure/report-config.service';
+import { VercelKvLastReportCacheService } from '../src/report/infrastructure/vercel-kv-last-report-cache.service';
 
 type ApiRequest = {
     headers?: Record<string, string | string[] | undefined>;
@@ -48,12 +49,14 @@ function getReportRunner(): ReportRunnerService {
     const configService = new ReportConfigService();
     const jiraApiService = new JiraApiService();
     const chatDeliveryService = new ChatDeliveryService();
+    const lastReportCacheService = new VercelKvLastReportCacheService();
     const aggregationService = new ReportAggregationService();
 
     cachedRunner = new ReportRunnerService(
         configService,
         jiraApiService,
         chatDeliveryService,
+        lastReportCacheService,
         aggregationService,
     );
     return cachedRunner;

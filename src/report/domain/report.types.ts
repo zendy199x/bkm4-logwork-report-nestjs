@@ -104,6 +104,19 @@ export interface AggregatedData {
   reportDate: string;
 }
 
+export interface ReportChatPayload extends AggregatedData {
+  reportDateTimeLabel: string;
+  reportTitle: string;
+}
+
+export interface LastReportPayloadCacheRecord {
+  payload: ReportChatPayload;
+  jiraCheckUrl: string;
+  reportDate: string;
+  source: string;
+  cachedAt: string;
+}
+
 export interface GoogleChatEvent {
   type?: string;
   action?: {

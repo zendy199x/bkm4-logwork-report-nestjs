@@ -18,6 +18,7 @@ describe('JiraApiService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.REPORT_WORKLOG_CONCURRENCY;
   });
 
   it('fetches issues and hydrates work logs', async () => {
@@ -154,5 +155,42 @@ describe('JiraApiService', () => {
     service['logJiraResponseDebug'](2, hugePayload);
 
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[truncated]'));
+  });
+
+  it('hydrates issue worklogs with bounded concurrency', async () => {
+    process.env.REPORT_WORKLOG_CONCURRENCY = '2';
+
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        issues: [
+          { key: 'BKM4-1', fields: { worklog: {} } },
+          { key: 'BKM4-2', fields: { worklog: {} } },
+          { key: 'BKM4-3', fields: { worklog: {} } },
+          { key: 'BKM4-4', fields: { worklog: {} } },
+        ],
+      },
+    });
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    mockedAxios.get.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      inFlight -= 1;
+
+      return {
+        data: { worklogs: [{ id: '1', timeSpentSeconds: 60 }], total: 1, startAt: 0 },
+      };
+    });
+
+    const service = new JiraApiService();
+    const issues = await service.fetchIssuesWithWorkLogs(jira, 'project = BKM4', false);
+
+    expect(issues).toHaveLength(4);
+    expect(maxInFlight).toBeLessThanOrEqual(2);
   });
 });

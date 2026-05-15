@@ -9,6 +9,8 @@ const SEARCH_FIELDS = ['worklog'];
 const SEARCH_EXPAND = 'worklog';
 const PAGE_SIZE = 100;
 const WORKLOG_PAGE_SIZE = 100;
+const DEFAULT_WORKLOG_CONCURRENCY = 8;
+const MAX_WORKLOG_CONCURRENCY = 20;
 
 @Injectable()
 export class JiraApiService implements JiraGatewayPort {
@@ -68,43 +70,72 @@ export class JiraApiService implements JiraGatewayPort {
     debugEnabled: boolean,
   ): Promise<Issue[]> {
     const hydratedIssues: Issue[] = [];
+    const worklogConcurrency = this.resolveWorklogConcurrency();
 
-    for (const issue of issues) {
-      const issueKey = String(issue?.key || '');
-      if (!issueKey) {
-        hydratedIssues.push(issue);
-        continue;
-      }
-
-      const fullWorkLogs = await this.fetchAllWorkLogsForIssue(jira, issueKey, debugEnabled);
-      const existingWorklogField = issue?.fields?.worklog || {};
-
-      hydratedIssues.push({
-        ...issue,
-        fields: issue.fields
-          ? {
-              ...issue.fields,
-              worklog: {
-                ...existingWorklogField,
-                startAt: 0,
-                maxResults: fullWorkLogs.length,
-                total: fullWorkLogs.length,
-                worklogs: fullWorkLogs,
-              },
-            }
-          : {
-              worklog: {
-                ...existingWorklogField,
-                startAt: 0,
-                maxResults: fullWorkLogs.length,
-                total: fullWorkLogs.length,
-                worklogs: fullWorkLogs,
-              },
-            },
-      });
+    for (let index = 0; index < issues.length; index += worklogConcurrency) {
+      const chunk = issues.slice(index, index + worklogConcurrency);
+      const hydratedChunk = await Promise.all(
+        chunk.map((issue) => this.hydrateSingleIssueWithFullWorkLogs(jira, issue, debugEnabled)),
+      );
+      hydratedIssues.push(...hydratedChunk);
     }
 
     return hydratedIssues;
+  }
+
+  private async hydrateSingleIssueWithFullWorkLogs(
+    jira: JiraConfig,
+    issue: Issue,
+    debugEnabled: boolean,
+  ): Promise<Issue> {
+    const issueKey = String(issue?.key || '');
+    if (!issueKey) {
+      return issue;
+    }
+
+    const fullWorkLogs = await this.fetchAllWorkLogsForIssue(jira, issueKey, debugEnabled);
+    const existingWorklogField = issue?.fields?.worklog || {};
+
+    return {
+      ...issue,
+      fields: issue.fields
+        ? {
+            ...issue.fields,
+            worklog: {
+              ...existingWorklogField,
+              startAt: 0,
+              maxResults: fullWorkLogs.length,
+              total: fullWorkLogs.length,
+              worklogs: fullWorkLogs,
+            },
+          }
+        : {
+            worklog: {
+              ...existingWorklogField,
+              startAt: 0,
+              maxResults: fullWorkLogs.length,
+              total: fullWorkLogs.length,
+              worklogs: fullWorkLogs,
+            },
+          },
+    };
+  }
+
+  private resolveWorklogConcurrency(): number {
+    const rawValue = (process.env.REPORT_WORKLOG_CONCURRENCY || '').trim();
+    if (!rawValue) {
+      return DEFAULT_WORKLOG_CONCURRENCY;
+    }
+
+    const parsedValue = Number(rawValue);
+    if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+      this.logger.warn(
+        `Invalid REPORT_WORKLOG_CONCURRENCY value "${rawValue}". Falling back to ${DEFAULT_WORKLOG_CONCURRENCY}.`,
+      );
+      return DEFAULT_WORKLOG_CONCURRENCY;
+    }
+
+    return Math.min(parsedValue, MAX_WORKLOG_CONCURRENCY);
   }
 
   private async fetchAllWorkLogsForIssue(

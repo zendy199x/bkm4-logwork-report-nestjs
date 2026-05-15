@@ -6,6 +6,7 @@ describe('ReportController', () => {
   const service = {
     canTriggerWithToken: jest.fn(),
     runDailyReport: jest.fn(),
+    retryDailyReportWithCache: jest.fn(),
     handleGoogleChatEvent: jest.fn(),
   };
 
@@ -62,16 +63,40 @@ describe('ReportController', () => {
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<html lang="en">');
     expect(html).toContain('<script>');
+    expect(html).toContain('id="actionsRow"');
+    expect(html).toContain('justify-content: center;');
+    expect(html).toContain('min-height: 44px;');
+    expect(html).toContain('.actions.is-canceled button');
+    expect(html).toContain("buttonRetrying: 'Retrying'");
+    expect(html).toContain('function enterCanceledMode()');
+    expect(html).toContain("canceledTitle: 'Retry request canceled - {team}'");
+    expect(html).toContain("canceledQuestion: 'No further action is needed. You can close this page now.'");
+    expect(html).toContain("confirmBtn.classList.add('is-hidden');");
+    expect(html).toContain("cancelBtn.classList.add('is-hidden');");
+    expect(html).toContain("confirmBtn.style.setProperty('display', 'none', 'important');");
+    expect(html).toContain("cancelBtn.style.setProperty('display', 'none', 'important');");
+    expect(html).toContain('confirmBtn.hidden = true;');
+    expect(html).toContain('cancelBtn.hidden = true;');
+    expect(html).toContain("confirmBtn.style.display = 'none';");
+    expect(html).toContain("cancelBtn.style.display = 'none';");
+    expect(html).not.toContain("buttonRetrying: 'Đang gửi lại',\n            cancel: 'Cancel'");
   });
 
   it('runs retry endpoint when authorized', async () => {
     service.canTriggerWithToken.mockReturnValue(true);
-    service.runDailyReport.mockResolvedValue({ source: 'x' });
+    service.retryDailyReportWithCache.mockResolvedValue({
+      source: 'x',
+      cacheHit: true,
+      backgroundRefresh: true,
+      message: 'Cached report sent immediately. Fresh report is being refreshed in background.',
+    });
 
     await expect(controller.retry('token')).resolves.toEqual({
       ok: true,
-      message: 'Report triggered again successfully',
       source: 'x',
+      cacheHit: true,
+      backgroundRefresh: true,
+      message: 'Cached report sent immediately. Fresh report is being refreshed in background.',
     });
   });
 
@@ -83,7 +108,7 @@ describe('ReportController', () => {
 
   it('uses empty token by default in retry endpoint', async () => {
     service.canTriggerWithToken.mockReturnValue(true);
-    service.runDailyReport.mockResolvedValue({ ok: true });
+    service.retryDailyReportWithCache.mockResolvedValue({ ok: true });
 
     await controller.retry();
 

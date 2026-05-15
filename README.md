@@ -126,6 +126,9 @@ If GOOGLE_CHAT_MODE=app:
 - REPORT_DATE
 - REPORT_DEBUG
 - REPORT_DEBUG_AUTHORS
+- REPORT_WORKLOG_CONCURRENCY
+- KV_REST_API_URL (enable fast retry cache via Vercel KV)
+- KV_REST_API_TOKEN (enable fast retry cache via Vercel KV)
 
 ## API Endpoints
 

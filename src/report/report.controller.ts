@@ -185,6 +185,16 @@ export class ReportController {
         flex-wrap: wrap;
         gap: 10px;
         margin-top: 14px;
+        justify-content: center;
+        min-height: 44px;
+      }
+
+      .actions .is-hidden {
+        display: none !important;
+      }
+
+      .actions.is-canceled button {
+        display: none !important;
       }
 
       button {
@@ -283,7 +293,7 @@ export class ReportController {
         <div id="retryCount" class="count-value">0</div>
       </section>
 
-      <div class="actions">
+      <div id="actionsRow" class="actions">
         <button id="confirmBtn" class="confirm" type="button">Confirm Retry</button>
         <button id="cancelBtn" class="cancel" type="button">Cancel</button>
       </div>
@@ -301,11 +311,13 @@ export class ReportController {
           en: {
             langButton: 'EN',
             pageTitle: 'Retry report - {team}',
+            canceledTitle: 'Retry request canceled - {team}',
             question: 'Do you want to retry sending the report now?',
+            canceledQuestion: 'No further action is needed. You can close this page now.',
             retryCountTitle: 'Retry Count Today',
             localTimeTitle: 'Local Time',
             confirm: 'Confirm Retry',
-            buttonRetrying: 'Đang gửi lại',
+            buttonRetrying: 'Retrying',
             cancel: 'Cancel',
             statusIdle: 'You have not retried any report today.',
             statusCanceled: 'Action canceled. No report was sent.',
@@ -325,7 +337,9 @@ export class ReportController {
           vi: {
             langButton: 'VI',
             pageTitle: 'Gửi lại report - {team}',
+            canceledTitle: 'Đã hủy yêu cầu gửi lại - {team}',
             question: 'Bạn có muốn gửi lại report ngay bây giờ không?',
+            canceledQuestion: 'Không cần thao tác thêm. Bạn có thể đóng trang này.',
             retryCountTitle: 'Số lần đã gửi lại hôm nay',
             localTimeTitle: 'Giờ local hiện tại',
             confirm: 'Xác nhận gửi lại',
@@ -356,10 +370,12 @@ export class ReportController {
         var langSwitchText = document.getElementById('langSwitchText');
         var confirmBtn = document.getElementById('confirmBtn');
         var cancelBtn = document.getElementById('cancelBtn');
+        var actionsRow = document.getElementById('actionsRow');
 
         var currentLanguage = getSavedLanguage();
         var statusState = { kind: 'idle' };
         var loadingTimerId = null;
+        var isCanceledMode = false;
 
         function pad(num) {
           return String(num).padStart(2, '0');
@@ -381,13 +397,35 @@ export class ReportController {
 
         function applyLanguage() {
           var i18n = getI18n();
-          var localizedTitle = i18n.pageTitle.replace('{team}', TEAM_NAME);
+          var localizedTitle = (isCanceledMode ? i18n.canceledTitle : i18n.pageTitle).replace('{team}', TEAM_NAME);
           document.title = localizedTitle;
           document.documentElement.lang = currentLanguage;
           titleEl.textContent = localizedTitle;
-          questionEl.textContent = i18n.question;
+
+          if (isCanceledMode) {
+            questionEl.textContent = i18n.canceledQuestion;
+            confirmBtn.hidden = true;
+            confirmBtn.classList.add('is-hidden');
+            confirmBtn.style.display = 'none';
+            confirmBtn.style.setProperty('display', 'none', 'important');
+            cancelBtn.hidden = true;
+            cancelBtn.classList.add('is-hidden');
+            cancelBtn.style.display = 'none';
+            cancelBtn.style.setProperty('display', 'none', 'important');
+            actionsRow.classList.add('is-canceled');
+          } else {
+            questionEl.textContent = i18n.question;
+            confirmBtn.hidden = false;
+            confirmBtn.classList.remove('is-hidden');
+            confirmBtn.style.display = '';
+            cancelBtn.hidden = false;
+            cancelBtn.classList.remove('is-hidden');
+            cancelBtn.style.display = '';
+            actionsRow.classList.remove('is-canceled');
+          }
+
           countTitleEl.textContent = i18n.retryCountTitle;
-          if (loadingTimerId === null) {
+          if (!isCanceledMode && loadingTimerId === null) {
             confirmBtn.textContent = i18n.confirm;
             confirmBtn.style.width = 'auto';
             confirmBtn.style.width = confirmBtn.offsetWidth + 'px';
@@ -418,6 +456,24 @@ export class ReportController {
           }
 
           confirmBtn.textContent = getI18n().confirm;
+        }
+
+        function enterCanceledMode() {
+          isCanceledMode = true;
+          confirmBtn.disabled = true;
+          cancelBtn.disabled = true;
+          confirmBtn.hidden = true;
+          confirmBtn.classList.add('is-hidden');
+          confirmBtn.style.display = 'none';
+          confirmBtn.style.setProperty('display', 'none', 'important');
+          cancelBtn.hidden = true;
+          cancelBtn.classList.add('is-hidden');
+          cancelBtn.style.display = 'none';
+          cancelBtn.style.setProperty('display', 'none', 'important');
+          actionsRow.classList.add('is-canceled');
+          statusState = { kind: 'canceled' };
+          applyLanguage();
+          renderStatus();
         }
 
         function readCounter() {
@@ -562,6 +618,18 @@ export class ReportController {
           }
 
           if (statusState.kind === 'canceled') {
+            confirmBtn.disabled = true;
+            cancelBtn.disabled = true;
+            confirmBtn.hidden = true;
+            confirmBtn.classList.add('is-hidden');
+            confirmBtn.style.display = 'none';
+            confirmBtn.style.setProperty('display', 'none', 'important');
+            cancelBtn.hidden = true;
+            cancelBtn.classList.add('is-hidden');
+            cancelBtn.style.display = 'none';
+            cancelBtn.style.setProperty('display', 'none', 'important');
+            actionsRow.classList.add('is-canceled');
+            questionEl.textContent = i18n.canceledQuestion;
             setStatus(i18n.statusCanceled, 'info');
             return;
           }
@@ -578,6 +646,11 @@ export class ReportController {
 
           if (statusState.kind === 'history') {
             setStatus(i18n.statusHistory(statusState.count), 'info');
+            return;
+          }
+
+          if (statusState.kind === 'infoMessage') {
+            setStatus(statusState.message, 'info');
             return;
           }
 
@@ -608,8 +681,7 @@ export class ReportController {
         });
 
         cancelBtn.addEventListener('click', function () {
-          statusState = { kind: 'canceled' };
-          renderStatus();
+          enterCanceledMode();
         });
 
         confirmBtn.addEventListener('click', async function () {
@@ -644,7 +716,15 @@ export class ReportController {
             };
             writeCounter(state);
             refreshCount(state);
-            statusState = { kind: 'success', count: state.count };
+            var successI18n = getI18n();
+            if (data.cacheHit === false) {
+              statusState = {
+                kind: 'infoMessage',
+                message: data.message || successI18n.statusRetrying,
+              };
+            } else {
+              statusState = { kind: 'success', count: state.count };
+            }
             renderStatus();
           } catch (error) {
             statusState = resolveErrorState(error);
@@ -667,10 +747,9 @@ export class ReportController {
       throw new UnauthorizedException('Invalid or missing cron secret');
     }
 
-    const result = await this.reportService.runDailyReport('chat-retry-button');
+    const result = await this.reportService.retryDailyReportWithCache('chat-retry-button');
     return {
       ok: true,
-      message: 'Report triggered again successfully',
       ...result,
     };
   }
